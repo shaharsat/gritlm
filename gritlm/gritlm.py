@@ -1,9 +1,12 @@
+import sys
 from typing import Dict, List, Union, cast
 
 import numpy as np
 import torch
 from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
+
+sys.path.append('/tmp/shahar/grimlm')
 
 from rpt.neox_model_torch import GPTNeoXForCausalLM
 
