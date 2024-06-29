@@ -6,7 +6,7 @@ import torch
 from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
-sys.path.append('/tmp/shahar/grimlm')
+sys.path.append('/tmp/shahar/grimlm/rpt')
 
 from rpt.neox_model_torch import GPTNeoXForCausalLM
 
