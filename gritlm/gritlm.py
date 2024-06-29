@@ -5,6 +5,8 @@ import torch
 from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
+from rpt.neox_model_torch import GPTNeoXForCausalLM
+
 
 class GritLM(torch.nn.Module):
     def __init__(
@@ -25,6 +27,8 @@ class GritLM(torch.nn.Module):
                 # Somehow AutoModel does not pick the right one by default
                 from transformers import T5EncoderModel
                 self.model = T5EncoderModel.from_pretrained(model_name_or_path, **kwargs)
+            elif model_name_or_path == 'rpt':
+                self.model = GPTNeoXForCausalLM.from_pretrained(model_name_or_path)
             else:
                 self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True, **kwargs)
             self.embedding_attr = None
@@ -89,8 +93,9 @@ class GritLM(torch.nn.Module):
             ]
         return self.encode(corpus, **kwargs)
 
+
     @torch.no_grad()
-    def encode(
+    def encode_old(
         self,
         sentences: Union[List[str], str],
         batch_size: int = 256,
@@ -174,6 +179,29 @@ class GritLM(torch.nn.Module):
             # )
             return all_embeddings, all_kv_caches
         return all_embeddings
+
+
+
+
+    @torch.no_grad()
+    def encode(
+            self,
+            sentences: Union[List[str], str],
+            batch_size: int = 256,
+            max_length: int = 512,
+            instruction: str = "",
+            embed_instruction: bool = False,
+            get_cache: bool = False,
+            convert_to_tensor: bool = False,
+            recast: bool = False,
+            add_special_tokens: bool = True,
+            **kwargs,
+        ):
+        return self.model.encode(
+            sentences,
+            batch_size,
+            max_length
+        )
 
     def pooling(
         self, hidden_state: torch.Tensor, attention_mask: torch.Tensor = None, recast: bool = False
