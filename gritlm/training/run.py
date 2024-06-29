@@ -315,6 +315,8 @@ def main():
         "tokenizer": tokenizer,
     }
 
+    torch.cuda.set_device(1)
+
     if gc_chunk_size is not None:
         from .gradcache_trainer import GradCacheTrainer
         trainer = GradCacheTrainer(**trainer_kwargs)
