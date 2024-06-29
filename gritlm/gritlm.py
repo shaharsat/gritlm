@@ -27,7 +27,7 @@ class GritLM(torch.nn.Module):
                 # Somehow AutoModel does not pick the right one by default
                 from transformers import T5EncoderModel
                 self.model = T5EncoderModel.from_pretrained(model_name_or_path, **kwargs)
-            elif model_name_or_path == 'rpt':
+            elif 'rpt' in model_name_or_path.lower():
                 self.model = GPTNeoXForCausalLM.from_pretrained(model_name_or_path)
             else:
                 self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True, **kwargs)
