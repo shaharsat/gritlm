@@ -6,7 +6,7 @@ import torch
 from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
-sys.path.append('/tmp/shahar/gritlm/rpt')
+sys.path.append('/tmp/shahar/gritlm/')
 
 import rpt
 
