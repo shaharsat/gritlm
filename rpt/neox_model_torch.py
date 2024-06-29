@@ -1542,7 +1542,7 @@ class GPTNeoXBlockCollection(nn.Module):
 
         self.blocks = nn.ModuleList([
             GPTNeoXBlock(self.config, dtype=self.dtype, has_cca=i in list(self.cca_layer_idxs))
-            for i in range(self.config.num_hidden_layers)
+            for i in range(len(self.lowcoder_layer_idxs))
         ])
 
     def forward(
