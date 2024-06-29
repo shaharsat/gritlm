@@ -2618,7 +2618,7 @@ class GPTNeoXForCausalLMModule(GPTNeoXPreTrainedModel):
                 for key in encoded_output['key_chunks']:
                     outputs.append(key)
 
-        return torch.stack(outputs).cpu().detach().numpy()
+        return torch.stack(outputs)
 
 
 class GPTNeoXForCausalLM(GPTNeoXForCausalLMModule):
