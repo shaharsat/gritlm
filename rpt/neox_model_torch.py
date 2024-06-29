@@ -17,6 +17,9 @@ import warnings
 from distutils import dist
 from typing import Optional, Tuple, Union, Dict, Any, List
 
+sys.path.append('/tmp/shahar/gritlm/rpt')
+
+
 import einops
 import numpy as np
 import torch
@@ -46,6 +49,7 @@ from gate_torch import GriffinGate
 from rpt_torch_utils import EncodedNeighbors, new_lookup_neighbors, GPTNeoXRetrieverNeighborOutput, \
     GPTNeoXRetrieverEncodedOutput, GPTNeoXLMOutput, GPTNeoXModelOutput, add_batch_index, create_prepare_inputs
 from torch_utils import make_causal_mask, assign_slice, combine_masks
+
 
 class GPTNeoXConfig(PretrainedConfig):
     r"""

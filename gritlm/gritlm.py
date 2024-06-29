@@ -7,7 +7,6 @@ from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
 sys.path.append('/tmp/shahar/gritlm/')
-sys.path.append('/tmp/shahar/gritlm/rpt')
 
 from rpt import GPTNeoXForCausalLM
 
