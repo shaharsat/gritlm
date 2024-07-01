@@ -144,6 +144,8 @@ class GritLMTrainModel(GritLM):
             kwargs['is_causal'] = False
         out = self.model.encode(**kwargs)[0]
 
+        return out
+        """
         if self.projection is not None:
             out = self.projection(out)
         
@@ -163,6 +165,7 @@ class GritLMTrainModel(GritLM):
             in_dtype = reps.dtype
             return torch.nn.functional.normalize(reps, dim=-1).contiguous().to(in_dtype)
         return reps.contiguous()
+        """
 
     def forward(
         self,
