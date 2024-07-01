@@ -2599,8 +2599,9 @@ class GPTNeoXForCausalLMModule(GPTNeoXPreTrainedModel):
             output = output.squeeze(0)
         return output
 
-    def encode(self, features):
-        return self.batch_lowcoder_forward(features['input_ids'], features['attention_mask'])
+    def encode(self, input_ids, attention_mask):
+        print(input_ids.shape, attention_mask.shape)
+        return self.batch_lowcoder_forward(input_ids, attention_mask)
 
 
 class GPTNeoXForCausalLM(GPTNeoXForCausalLMModule):
