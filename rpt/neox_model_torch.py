@@ -2599,26 +2599,8 @@ class GPTNeoXForCausalLMModule(GPTNeoXPreTrainedModel):
             output = output.squeeze(0)
         return output
 
-    def encode(self, text, batch_size=64, max_length=2048, split_by_newline=False):
-        inputs = [self.prepare_inputs(prefix, split_by_newline, max_length) for prefix in text]
-        inputs = [add_batch_index(x,j) for j,x in enumerate(inputs)]
-        inputs = sum(inputs,[])
-        def collate_fn(batch):
-            with torch.no_grad():
-                input_ids = torch.tensor(np.array([x["input_ids"].squeeze() for x in batch]), device=self.device)
-                attention_mask = torch.tensor(np.array([x["attention_mask"].squeeze() for x in batch]), device=self.device)
-                return input_ids, attention_mask
-
-        with torch.no_grad():
-            outputs = []
-            for i, batch in enumerate(chunked(inputs, batch_size)):
-                print(f'{batch[-1]["batch_index"]+1}/{len(inputs)}')
-                input_ids, attention_mask = collate_fn(batch)
-                encoded_output = self.batch_lowcoder_forward(input_ids, attention_mask)
-                for key in encoded_output['key_chunks']:
-                    outputs.append(key)
-
-        return torch.stack(outputs)
+    def encode(self, features):
+        return self.batch_lowcoder_forward(features['input_ids'], features['attention_mask'])
 
 
 class GPTNeoXForCausalLM(GPTNeoXForCausalLMModule):

@@ -142,7 +142,7 @@ class GritLMTrainModel(GritLM):
             kwargs['instruction_lens'] = instruction_lens
         elif self.attn[:2] == 'bb':
             kwargs['is_causal'] = False
-        out = (getattr(self.model, self.embedding_attr) if self.embedding_attr else self.model)(**kwargs)[0]
+        out = self.model.encode(**kwargs)[0]
 
         if self.projection is not None:
             out = self.projection(out)
