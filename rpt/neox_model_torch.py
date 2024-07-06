@@ -19,6 +19,7 @@ from distutils import dist
 from typing import Optional, Tuple, Union, Dict, Any, List
 
 sys.path.append('/tmp/shahar/gritlm/rpt')
+sys.path.append('/Users/shahar.satamkar/Desktop/research/gritlm/rpt')
 
 
 import einops
@@ -2601,6 +2602,7 @@ class GPTNeoXForCausalLMModule(GPTNeoXPreTrainedModel):
 
     def encode(self, input_ids, attention_mask):
         print(input_ids.shape, attention_mask.shape)
+        print(input_ids, attention_mask)
         return self.batch_lowcoder_forward(input_ids, attention_mask)
 
 

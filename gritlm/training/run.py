@@ -14,8 +14,6 @@ from .arguments import CustomTrainingArguments, DataArguments, ModelArguments
 from .data import CustomCollator, CustomDataset, CustomRandomSampler
 from .model import GritLMTrainModel
 
-torch.cuda.set_device(1)
-
 BASE_BOS: str = "<s>"
 TURN_SEP: str = "\n"
 

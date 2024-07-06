@@ -7,6 +7,7 @@ from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
 sys.path.append('/tmp/shahar/gritlm/')
+sys.path.append('/Users/shahar.satamkar/Desktop/research/gritlm')
 
 from rpt import GPTNeoXForCausalLM
 
@@ -30,7 +31,7 @@ class GritLM(torch.nn.Module):
                 from transformers import T5EncoderModel
                 self.model = T5EncoderModel.from_pretrained(model_name_or_path, **kwargs)
             elif 'rpt' in model_name_or_path.lower():
-                self.model = GPTNeoXForCausalLM.from_pretrained(model_name_or_path, torch_dtype=torch.bfloat16)
+                self.model = GPTNeoXForCausalLM.from_pretrained(model_name_or_path, torch_dtype=torch.bfloat16, attn_implementation="eager")
             else:
                 self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True, **kwargs)
             self.embedding_attr = None
