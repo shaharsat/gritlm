@@ -6,7 +6,7 @@ import torch
 from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
-sys.path.append('/tmp/shahar/gritlm/')
+sys.path.append('/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/')
 sys.path.append('/Users/shahar.satamkar/Desktop/research/gritlm')
 
 from rpt import GPTNeoXForCausalLM

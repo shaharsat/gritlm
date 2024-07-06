@@ -18,7 +18,7 @@ import warnings
 from distutils import dist
 from typing import Optional, Tuple, Union, Dict, Any, List
 
-sys.path.append('/tmp/shahar/gritlm/rpt')
+sys.path.append('/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/rpt')
 sys.path.append('/Users/shahar.satamkar/Desktop/research/gritlm/rpt')
 
 
