@@ -31,7 +31,7 @@ class GritLM(torch.nn.Module):
                 from transformers import T5EncoderModel
                 self.model = T5EncoderModel.from_pretrained(model_name_or_path, **kwargs)
             elif 'rpt' in model_name_or_path.lower():
-                self.model = GPTNeoXForCausalLM.from_pretrained(model_name_or_path, torch_dtype=torch.bfloat16, attn_implementation="eager")
+                self.model = GPTNeoXForCausalLM.from_pretrained(model_name_or_path, torch_dtype=torch.bfloat16)
             else:
                 self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True, **kwargs)
             self.embedding_attr = None
