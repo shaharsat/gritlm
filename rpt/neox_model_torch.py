@@ -2602,7 +2602,7 @@ class GPTNeoXForCausalLMModule(GPTNeoXPreTrainedModel):
 
     def encode(self, input_ids, attention_mask):
         print(input_ids.shape, attention_mask.shape)
-        print(input_ids, attention_mask)
+        #print(input_ids, attention_mask)
         return self.batch_lowcoder_forward(input_ids, attention_mask)
 
 
