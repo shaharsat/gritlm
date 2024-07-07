@@ -1,7 +1,11 @@
 import sys
-from transformers import AutoModelForCausalLM
 
-model = AutoModelForCausalLM.from_pretrained(
+sys.path.append('/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm')
+sys.path.append('/Users/shahar.satamkar/Desktop/research/gritlm')
+
+from rpt import GPTNeoXForCausalLM
+
+model = GPTNeoXForCausalLM.from_pretrained(
     sys.argv[1],
     torch_dtype="auto",
 )
