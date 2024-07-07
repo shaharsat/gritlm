@@ -2660,7 +2660,7 @@ class GPTNeoXForCausalLM(GPTNeoXForCausalLMModule):
 
 class GPTNeoXForCausalLMEval(GPTNeoXForCausalLM):
     def encode(self, text, batch_size=64, split_by_newline=False):
-        inputs = [self.prepare_inputs(prefix, split_by_newline, self.config.input_length) for prefix in text]
+        inputs = [self.prepare_inputs(prefix, split_by_newline, 512) for prefix in text]
         inputs = [add_batch_index(x, j) for j, x in enumerate(inputs)]
         inputs = sum(inputs, [])
 
