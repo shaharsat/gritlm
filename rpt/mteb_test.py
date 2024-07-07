@@ -1,8 +1,8 @@
 import torch
 import sys
 sys.path.append('/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm')
+sys.path.append('/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/rpt')
 sys.path.append('/Users/shahar.satamkar/Desktop/research/gritlm')
-sys.path.append('/Users/shahar.satamkar/Desktop/research/gritlm/rpt')
 print(sys.path)
 from mteb import AmazonReviewsClassification, Banking77Classification
 from rpt import GPTNeoXForCausalLMEval
