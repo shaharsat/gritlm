@@ -4,7 +4,7 @@ sys.path.append('/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm')
 sys.path.append('/Users/shahar.satamkar/Desktop/research/gritlm')
 print(sys.path)
 from mteb import AmazonReviewsClassification, Banking77Classification
-from rpt import GPTNeoXForCausalLMEval
+from rpt import GPTNeoXForCausalLM
 import mteb
 from sys import argv
 
@@ -12,7 +12,7 @@ from sys import argv
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 model_name = 'neox_rpt_model'
-hf_model = GPTNeoXForCausalLMEval.from_pretrained(argv[1])
+hf_model = GPTNeoXForCausalLM.from_pretrained(argv[1])
 hf_model.to(device=device)
 
 evaluation = mteb.MTEB(tasks=[Banking77Classification(hf_subsets=["en"], batch_size=16)])
