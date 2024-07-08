@@ -184,6 +184,8 @@ class GritLMTrainModel(GritLM):
             passage: [b*s, m] where s is group size (usually 2)
             generative: [b, m]
         """
+        print(f'query={query}\npassage={passage}')
+
         # Do generative first, as emb contains an all-reduce (verified to be faster)
         if generative is not None:
             if self.gen_loss_fn is not None:
@@ -209,7 +211,9 @@ class GritLMTrainModel(GritLM):
             else:
                 with torch.no_grad():
                     p_reps = self.encode(passage)
-            
+
+        print('q_reps', q_reps)
+        print('p_reps', p_reps)
         loss_emb = self.emb_loss_fn(
             q_reps, p_reps
         ) if (q_reps is not None and p_reps is not None) else None        
