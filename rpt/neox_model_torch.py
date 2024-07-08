@@ -2601,9 +2601,11 @@ class GPTNeoXForCausalLMModule(GPTNeoXPreTrainedModel):
         return output
 
     def encode(self, input_ids, attention_mask):
-        #print(input_ids.shape, attention_mask.shape)
+        print(input_ids.shape, attention_mask.shape)
         #print(input_ids, attention_mask)
-        return self.batch_lowcoder_forward(input_ids, attention_mask)
+        results = self.batch_lowcoder_forward(input_ids, attention_mask)
+        print(results['key_chunks'])
+        return results['key_chunks']
 
 
 class GPTNeoXForCausalLM(GPTNeoXForCausalLMModule):

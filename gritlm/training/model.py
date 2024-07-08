@@ -60,6 +60,7 @@ class DistributedContrastiveLoss:
         return all_tensors
 
     def compute_similarity(self, q_reps, p_reps):
+        print(q_reps.shape, p_reps.shape)
         if len(p_reps.size()) == 2: return torch.matmul(q_reps, p_reps.transpose(0, 1))
         return torch.matmul(q_reps, p_reps.transpose(-2, -1))
 
