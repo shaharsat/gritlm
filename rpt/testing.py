@@ -2,7 +2,7 @@ import sys
 import torch
 from transformers import AutoTokenizer, AutoModel
 
-from rpt import GPTNeoXForCausalLM
+from rpt import GPTNeoXForCausalLMEval
 
 """
 sys.path.append('/tmp/shahar/gritlm/')
@@ -65,4 +65,7 @@ values = tokenizer.decode([29,    84,  2730,    93,  4537, 49651,   187, 35012, 
 print(values)
 """
 
-hf_model = GPTNeoXForCausalLM.from_pretrained('Shahar603/neox-rpt-1-bf16', torch_dtype=torch.bfloat16)
+hf_model = GPTNeoXForCausalLMEval.from_pretrained('Shahar603/neox-rpt-1')
+
+results = hf_model.encode(['hello'*100, 'world'], 2)
+print(results)

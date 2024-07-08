@@ -313,6 +313,7 @@ def main():
             prefixlm=data_args.prefixlm
         ),
         "tokenizer": tokenizer,
+        "logging_steps": 1,
     }
 
 
