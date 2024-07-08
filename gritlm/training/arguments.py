@@ -152,3 +152,4 @@ class CustomTrainingArguments(TrainingArguments):
     split_emb_full: bool = field(default=False, metadata={"help": "Split embedding forward / backward pass"})
     emb_q_only: bool = field(default=False, metadata={"help": "Only backprop on q's"})
     emb_p_only: bool = field(default=False, metadata={"help": "Only backprop on p's (pos & neg)"})
+    logging_steps: int = field(default=1000, metadata={"help": "Used for logging training"})
