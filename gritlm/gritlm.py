@@ -1,5 +1,6 @@
 import sys
 sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm")
+sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/gritlm")
 
 from typing import Dict, List, Union, cast
 
