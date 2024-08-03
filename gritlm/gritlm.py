@@ -5,7 +5,7 @@ import torch
 from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
-from .modeling_mistral_gritlm import MistralForCausalLM
+from gritlm.modeling_mistral_gritlm import MistralForCausalLM
 
 
 class GritLM(torch.nn.Module):
