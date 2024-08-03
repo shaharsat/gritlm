@@ -5,6 +5,8 @@ import torch
 from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
+from .modeling_mistral_gritlm import MistralForCausalLM
+
 
 class GritLM(torch.nn.Module):
     def __init__(
@@ -25,6 +27,8 @@ class GritLM(torch.nn.Module):
                 # Somehow AutoModel does not pick the right one by default
                 from transformers import T5EncoderModel
                 self.model = T5EncoderModel.from_pretrained(model_name_or_path, **kwargs)
+            elif 'mistral' in model_name_or_path.lower():
+                self.model = MistralForCausalLM.from_pretrained(model_name_or_path, **kwargs)
             else:
                 self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True, **kwargs)
             self.embedding_attr = None

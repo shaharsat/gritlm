@@ -1,25 +1,24 @@
 #!/bin/bash
 #SBATCH --job-name=gritlm
-#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1          # crucial - only 1 task per dist per node!
-#SBATCH --hint=nomultithread         # we get physical cores not logical
-#SBATCH --partition=a3
 #SBATCH --gres=gpu:8                 # number of gpus
 #SBATCH --time 999:00:00             # maximum execution time (HH:MM:SS)
 #SBATCH --output=/data/niklas/jobs/%x-%j.out           # output file name
-#SBATCH --exclusive
 
 ######################
 ### Set enviroment ###
 ######################
 cd /home/niklas/gritlm/gritlm
+source /env/bin/start-ctx-user
+conda activate gritlm
+export WANDB_PROJECT="gritlm"
 # Training setup
 GPUS_PER_NODE=8
 # so processes know who to talk to
 MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
 MASTER_PORT=6000
 NNODES=$SLURM_NNODES
-NODE_RANK=$SLURM_PROCID
+NODE_RANK=$SLURM_PROCID 
 WORLD_SIZE=$(($GPUS_PER_NODE*$NNODES))
 ######################
 
@@ -29,9 +28,8 @@ WORLD_SIZE=$(($GPUS_PER_NODE*$NNODES))
 head_node_ip=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
 ######################
 
-
 LAUNCHER="accelerate launch \
-    --config_file /home/niklas/gritlm/scripts/configs/confnew/config_8gpusfsdp_m7.yml \
+    --config_file /home/niklas/gritlm/scripts/configs/config_128gpusfsdp_m7.yml \
     --num_machines $NNODES \
     --num_processes $WORLD_SIZE \
     --main_process_ip "$MASTER_ADDR" \
@@ -46,16 +44,15 @@ LAUNCHER="accelerate launch \
 
 export CMD=" \
     -m training.run \
-    --output_dir /data/niklas/gritlm/m7_nodes1_rerun \
+    --output_dir /data/niklas/gritlm/emb_m7_nodes16_fast_tmp \
     --model_name_or_path mistralai/Mistral-7B-v0.1 \
     --train_data /data/niklas/gritlm/e5ds \
     --learning_rate 2e-5 \
     --lr_scheduler_type linear \
     --warmup_ratio 0.03 \
     --max_steps 1253 \
-    --per_device_train_batch_size 32 \
-    --gradient_accumulation_steps 8 \
-    --per_device_generative_bs 32 \
+    --per_device_train_batch_size 16 \
+    --gradient_accumulation_steps 1 \
     --dataloader_drop_last \
     --normalized \
     --temperature 0.02 \
@@ -63,21 +60,18 @@ export CMD=" \
     --negatives_cross_device \
     --query_max_len 256 \
     --passage_max_len 2048 \
-    --mode unified \
+    --mode embedding \
     --logging_steps 1 \
     --bf16 \
     --pooling_method mean \
-    --use_unique_indices \
-    --loss_gen_type mixed \
     --attn bbcc \
     --attn_implementation sdpa \
-    --no_gen_gas \
-    --gradient_checkpointing \
-    --save_steps 5000
+    --save_steps 5000 \
+    --gradient_checkpointing
     "
 
 SRUN_ARGS=" \
-    --wait=60 \
+    --wait=6000 \
     --kill-on-bad-exit=1 \
     "
 
