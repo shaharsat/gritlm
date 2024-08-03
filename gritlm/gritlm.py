@@ -1,5 +1,4 @@
 import sys
-sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm")
 sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/gritlm")
 
 from typing import Dict, List, Union, cast
@@ -9,7 +8,7 @@ import torch
 from tqdm import tqdm
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
-from .modeling_mistral_gritlm import MistralForCausalLM
+from models.modeling_mistral_gritlm import MistralForCausalLM
 
 
 class GritLM(torch.nn.Module):
