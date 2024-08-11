@@ -34,7 +34,7 @@ class GritLM(torch.nn.Module):
             elif 'mistral' in model_name_or_path.lower():
                 self.model = MistralForCausalLM.from_pretrained(model_name_or_path, **kwargs)
             elif 'pythia' in model_name_or_path.lower():
-                self.model = GPTNeoXForCausalLM.from_pretrained(model_name_or_path, is_causal=False, **kwargs)
+                self.model = GPTNeoXForCausalLM.from_pretrained(model_name_or_path, **kwargs)
             else:
                 self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True, **kwargs)
             self.embedding_attr = None
