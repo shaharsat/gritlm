@@ -82,7 +82,7 @@ class GPTNeoXPreTrainedModel(PreTrainedModel):
 
 
 class GPTNeoXAttention(nn.Module):
-    def __init__(self, config, is_causal=False):
+    def __init__(self, config):
         super().__init__()
         self.config = config
         self.num_attention_heads = config.num_attention_heads
@@ -102,7 +102,6 @@ class GPTNeoXAttention(nn.Module):
         self.query_key_value = nn.Linear(config.hidden_size, 3 * config.hidden_size, bias=config.attention_bias)
         self.dense = nn.Linear(config.hidden_size, config.hidden_size, bias=config.attention_bias)
         self.attention_dropout = nn.Dropout(config.attention_dropout)
-        self.is_causal = is_causal
 
     def _init_bias(self, max_positions, device=None):
         self.register_buffer(
@@ -149,6 +148,7 @@ class GPTNeoXAttention(nn.Module):
         layer_past: Optional[Tuple[torch.Tensor]] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
+        is_causal: Optional[bool] = True,
     ):
         # Apply attention-specific projections and rope
         query, key, value, present = self._attn_projections_and_rope(
@@ -156,7 +156,7 @@ class GPTNeoXAttention(nn.Module):
         )
 
         # Compute attention
-        attn_output, attn_weights = self._attn(query, key, value, attention_mask, head_mask)
+        attn_output, attn_weights = self._attn(query, key, value, attention_mask, head_mask, is_causal)
 
         # Reshape outputs
         attn_output = self._merge_heads(attn_output, self.num_attention_heads, self.head_size)
@@ -242,7 +242,7 @@ class GPTNeoXAttention(nn.Module):
 
         return query, key, value, present
 
-    def _attn(self, query, key, value, attention_mask=None, head_mask=None):
+    def _attn(self, query, key, value, attention_mask=None, head_mask=None, is_causal=True):
         # q, k, v: [bs, num_attention_heads, seq_len, attn_head_size]
         # compute causal mask from causal mask buffer
         batch_size, num_attention_heads, query_length, attn_head_size = query.size()
@@ -274,7 +274,7 @@ class GPTNeoXAttention(nn.Module):
         mask_value = torch.finfo(attn_scores.dtype).min
 
         # Apply the causal mask only when using Causal Self Attention
-        if self.is_causal:
+        if is_causal:
             # Need to be a tensor, otherwise we get error: `RuntimeError: expected scalar type float but found double`.
             # Need to be on the same device, otherwise `RuntimeError: ..., x and y to be on the same device`
             mask_value = torch.tensor(mask_value, dtype=attn_scores.dtype).to(attn_scores.device)
@@ -322,6 +322,7 @@ class GPTNeoXFlashAttention2(GPTNeoXAttention):
         layer_past: Optional[Tuple[torch.Tensor]] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
+        is_causal: Optional[bool] = True,
     ):
         # Apply attention-specific projections and rope
         query, key, value, present = self._attn_projections_and_rope(
@@ -377,7 +378,7 @@ class GPTNeoXFlashAttention2(GPTNeoXAttention):
             query_length,
             dropout=attention_dropout,
             softmax_scale=self.norm_factor,
-            is_causal=self.is_causal,
+            is_causal=is_causal,
             use_top_left_mask=self._flash_attn_uses_top_left_mask,
         )
 
@@ -401,8 +402,8 @@ class GPTNeoXSdpaAttention(GPTNeoXAttention):
     to adapt to the SDPA API.
     """
 
-    def __init__(self, config, is_causal=False):
-        super().__init__(config, is_causal=is_causal)
+    def __init__(self, config):
+        super().__init__(config)
 
         # SDPA with memory-efficient backend is broken in torch==2.1.2 when using non-contiguous inputs and a custom
         # attn_mask, so we need to call `.contiguous()`. This was fixed in torch==2.2.0.
@@ -418,6 +419,7 @@ class GPTNeoXSdpaAttention(GPTNeoXAttention):
         layer_past: Optional[Tuple[torch.Tensor]] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
+        is_causal: Optional[bool] = True,
     ):
         if output_attentions or head_mask is not None:
             logger.warning_once(
@@ -456,8 +458,7 @@ class GPTNeoXSdpaAttention(GPTNeoXAttention):
             key = key.contiguous()
             value = value.contiguous()
 
-        is_causal = False
-        if self.is_causal:
+        if is_causal:
             # We dispatch to SDPA's Flash Attention or Efficient kernels via this `is_causal` if statement instead of an inline conditional assignment
             # in SDPA to support both torch.compile's dynamic shapes and full graph options. An inline conditional prevents dynamic shapes from compiling.
             is_causal = True if attention_mask is None and q_len > 1 else False
@@ -629,14 +630,14 @@ GPT_NEOX_ATTENTION_CLASSES = {
 
 
 class GPTNeoXLayer(nn.Module):
-    def __init__(self, config, is_causal):
+    def __init__(self, config):
         super().__init__()
         self.use_parallel_residual = config.use_parallel_residual
         self.input_layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.post_attention_layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.post_attention_dropout = nn.Dropout(config.hidden_dropout)
         self.post_mlp_dropout = nn.Dropout(config.hidden_dropout)
-        self.attention = GPT_NEOX_ATTENTION_CLASSES[config._attn_implementation](config, is_causal)
+        self.attention = GPT_NEOX_ATTENTION_CLASSES[config._attn_implementation](config)
         self.mlp = GPTNeoXMLP(config)
 
     def forward(
@@ -648,6 +649,7 @@ class GPTNeoXLayer(nn.Module):
         use_cache: Optional[bool] = False,
         layer_past: Optional[Tuple[torch.Tensor]] = None,
         output_attentions: Optional[bool] = False,
+        is_causal: Optional[bool] = True
     ):
         attention_layer_outputs = self.attention(
             self.input_layernorm(hidden_states),
@@ -657,6 +659,7 @@ class GPTNeoXLayer(nn.Module):
             head_mask=head_mask,
             use_cache=use_cache,
             output_attentions=output_attentions,
+            is_causal=is_causal,
         )
         attn_output = attention_layer_outputs[0]  # output_attn: attn_output, present, (attn_weights)
         attn_output = self.post_attention_dropout(attn_output)
@@ -743,14 +746,13 @@ GPT_NEOX_INPUTS_DOCSTRING = r"""
     GPT_NEOX_START_DOCSTRING,
 )
 class GPTNeoXModel(GPTNeoXPreTrainedModel):
-    def __init__(self, config, is_causal):
+    def __init__(self, config):
         super().__init__(config)
         self.config = config
-        self.is_causal = is_causal
 
         self.embed_in = nn.Embedding(config.vocab_size, config.hidden_size)
         self.emb_dropout = nn.Dropout(config.hidden_dropout)
-        self.layers = nn.ModuleList([GPTNeoXLayer(config, is_causal) for _ in range(config.num_hidden_layers // 2)])
+        self.layers = nn.ModuleList([GPTNeoXLayer(config) for _ in range(config.num_hidden_layers // 2)])
         self.final_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
         self._attn_implementation = config._attn_implementation
@@ -784,7 +786,8 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None
+        return_dict: Optional[bool] = None,
+        is_causal: Optional[bool] = True
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         r"""
         past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
@@ -834,7 +837,7 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         if self._attn_implementation == "flash_attention_2":
             attention_mask = attention_mask if (attention_mask is not None and 0 in attention_mask) else None
         elif self._attn_implementation == "sdpa" and not output_attentions and head_mask is None:
-            if self.is_causal:
+            if is_causal:
                 attention_mask = _prepare_4d_causal_attention_mask_for_sdpa(
                     attention_mask=attention_mask,
                     input_shape=(batch_size, seq_length),
@@ -846,7 +849,7 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
                     attention_mask, inputs_embeds.dtype
                 )
         else:
-            if self.is_causal:
+            if is_causal:
                 attention_mask = _prepare_4d_causal_attention_mask(
                     attention_mask=attention_mask,
                     input_shape=(batch_size, seq_length),
@@ -902,6 +905,7 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
                     layer_past=layer_past,
                     use_cache=use_cache,
                     output_attentions=output_attentions,
+                    is_causal=is_causal,
                 )
             hidden_states = outputs[0]
             if use_cache is True:
@@ -931,10 +935,10 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
 class GPTNeoXForCausalLM(GPTNeoXPreTrainedModel):
     _tied_weights_keys = ["embed_out.weight"]
 
-    def __init__(self, config, is_causal):
+    def __init__(self, config):
         super().__init__(config)
 
-        self.gpt_neox = GPTNeoXModel(config, is_causal)
+        self.gpt_neox = GPTNeoXModel(config)
         self.embed_out = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
@@ -961,6 +965,7 @@ class GPTNeoXForCausalLM(GPTNeoXPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        is_causal: Optional[bool] = True,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         past_key_values (`tuple(tuple(torch.FloatTensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
@@ -1014,6 +1019,7 @@ class GPTNeoXForCausalLM(GPTNeoXPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            is_causal=is_causal,
         )
 
         hidden_states = outputs[0]
@@ -1081,6 +1087,7 @@ class GPTNeoXForCausalLM(GPTNeoXPreTrainedModel):
                 "past_key_values": past_key_values,
                 "position_ids": position_ids,
                 "use_cache": kwargs.get("use_cache"),
+                "is_causal": kwargs.get("is_causal")
             }
         )
 
