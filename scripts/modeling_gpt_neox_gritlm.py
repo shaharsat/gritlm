@@ -750,7 +750,7 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
 
         self.embed_in = nn.Embedding(config.vocab_size, config.hidden_size)
         self.emb_dropout = nn.Dropout(config.hidden_dropout)
-        self.layers = nn.ModuleList([GPTNeoXLayer(config, is_causal) for _ in range(config.num_hidden_layers)])
+        self.layers = nn.ModuleList([GPTNeoXLayer(config, is_causal) for _ in range(config.num_hidden_layers // 2)])
         self.final_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
         self._attn_implementation = config._attn_implementation
