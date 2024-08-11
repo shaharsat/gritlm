@@ -351,7 +351,7 @@ def main():
         class WandbCustomCallback(WandbCallback):
             def on_log(self, args, state, control, model=None, logs=None, **kwargs):
                 if self._wandb is None: return
-                if not self._initialized: self.setup(args, state, model)
+                if not self._initialized: self.setup(args, state,  )
                 if hasattr(state, "loss_emb") and hasattr(state, "loss_gen"):
                     # Gather & avg across gpus like for actual loss
                     # https://github.com/huggingface/transformers/blob/bc72b4e2cdcbc80d5f56731f35dbc9c18b4c8de6/src/transformers/trainer.py#L2257
