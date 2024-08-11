@@ -8,7 +8,7 @@ import torch
 from torch import nn, Tensor
 from torch.cuda.amp import GradScaler, autocast
 
-from grad_cache.context_managers import RandContext
+from context_managers import RandContext
 
 logger = logging.getLogger(__name__)
 
