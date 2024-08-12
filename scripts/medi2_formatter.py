@@ -19,8 +19,8 @@ with open('medi2-train.jsonl') as f:
 
         training_data.append({
             'query': query,
-            'positives': positives[0],
-            'negatives': negatives[0],
+            'pos': positives[0],
+            'neg': negatives[0],
         })
 
 with open('medi2-train-no-instruct.jsonl', 'w') as f:
