@@ -987,10 +987,10 @@ class GPTNeoXRetriever(nn.Module):
         query_chunks = query_chunks / torch.linalg.norm(query_chunks, dim=-1).unsqueeze(-1)
 
         return GPTNeoXRetrieverEncodedOutput(
+            key_chunks=key_chunks,
             original_hidden_states=original_hidden_states,
             encoded_hidden_states=encoded_hidden_states,
             attention_mask=attention_mask,
-            key_chunks=key_chunks,
             query_chunks=query_chunks,
             chunk_mask=chunk_mask,
             preret_attention=preret_bi_output[1:],
