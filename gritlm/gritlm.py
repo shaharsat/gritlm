@@ -68,7 +68,7 @@ class GritLM(torch.nn.Module):
 
         if is_inference:
             # Padding side right is necessary for `embed_instruction` to index correctly
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, padding_side='right')
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, padding_side='right', pad_token='<|endoftext|>', mask_token='<|endoftext|>')
             if not(self.tokenizer.pad_token) and self.tokenizer.eos_token:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
                 print('Set pad token to eos token: ' + self.tokenizer.pad_token)        
@@ -129,7 +129,7 @@ class GritLM(torch.nn.Module):
             # This will prepend the bos token if the tokenizer has `add_bos_token=True`
             inputs = self.tokenizer(
                 sentences_batch,
-                padding=True,
+                padding='max_length',
                 truncation=True,
                 return_tensors='pt',
                 max_length=max_length,
