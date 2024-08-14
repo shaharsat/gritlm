@@ -44,7 +44,7 @@ from transformers.models.gpt_neox.configuration_gpt_neox import GPTNeoXConfig
 
 from transformers.utils import ModelOutput
 
-from EasyLM.models.neox.attention_torch import my_dot_product_attention_weights
+from attention import my_dot_product_attention_weights
 
 if is_flash_attn_2_available():
     from transformers.modeling_flash_attention_utils import _flash_attention_forward
