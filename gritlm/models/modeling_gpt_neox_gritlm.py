@@ -57,10 +57,11 @@ _CONFIG_FOR_DOC = "GPTNeoXConfig"
 
 @dataclass
 class GPTNeoXRetrieverEncodedOutput(ModelOutput):
+    key_chunks: torch.Tensor = None
+    past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
     original_hidden_states: torch.Tensor = None
     encoded_hidden_states: torch.Tensor = None
     attention_mask: torch.Tensor = None
-    key_chunks: torch.Tensor = None
     query_chunks: torch.Tensor = None
     chunk_mask: torch.Tensor = None
     preret_attention: Optional[torch.Tensor] = None
@@ -952,7 +953,8 @@ class GPTNeoXRetriever(nn.Module):
                       attention_mask,
                       deterministic,
                       pooling_size: int,
-                      output_attentions: bool = False, ):
+                      output_attentions: bool = False,
+                      past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None):
         original_hidden_states_shape = hidden_states.shape
         original_attention_mask_shape = attention_mask.shape
 
@@ -988,6 +990,7 @@ class GPTNeoXRetriever(nn.Module):
 
         return GPTNeoXRetrieverEncodedOutput(
             key_chunks=key_chunks,
+            past_key_values=past_key_values,
             original_hidden_states=original_hidden_states,
             encoded_hidden_states=encoded_hidden_states,
             attention_mask=attention_mask,
@@ -1112,7 +1115,7 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         is_causal: Optional[bool] = True
-    ) -> Union[Tuple, BaseModelOutputWithPast]:
+    ) -> Union[Tuple, GPTNeoXRetrieverEncodedOutput]:
         r"""
         past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
@@ -1251,7 +1254,8 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
             original_attention_mask,
             False, # deterministic
             input_ids.shape[-1], # chunk size
-            output_attentions
+            output_attentions,
+            past_key_values
         )
 
         return encoded_output
