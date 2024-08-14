@@ -13,9 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """PyTorch GPTNeoX model."""
-
+from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
+import einops
 import torch
 import torch.utils.checkpoint
 from packaging import version
@@ -41,6 +42,9 @@ from transformers.modeling_utils import PreTrainedModel
 from transformers.utils import get_torch_version, is_flash_attn_2_available, is_flash_attn_greater_or_equal_2_10, logging
 from transformers.models.gpt_neox.configuration_gpt_neox import GPTNeoXConfig
 
+from transformers.utils import ModelOutput
+
+from EasyLM.models.neox.attention_torch import my_dot_product_attention_weights
 
 if is_flash_attn_2_available():
     from transformers.modeling_flash_attention_utils import _flash_attention_forward
@@ -51,6 +55,15 @@ _CHECKPOINT_FOR_DOC = "trl-internal-testing/tiny-random-GPTNeoXForCausalLM"
 _REAL_CHECKPOINT_FOR_DOC = "EleutherAI/gpt-neox-20b"
 _CONFIG_FOR_DOC = "GPTNeoXConfig"
 
+@dataclass
+class GPTNeoXRetrieverEncodedOutput(ModelOutput):
+    original_hidden_states: torch.Tensor = None
+    encoded_hidden_states: torch.Tensor = None
+    attention_mask: torch.Tensor = None
+    key_chunks: torch.Tensor = None
+    query_chunks: torch.Tensor = None
+    chunk_mask: torch.Tensor = None
+    preret_attention: Optional[torch.Tensor] = None
 
 class GPTNeoXPreTrainedModel(PreTrainedModel):
     """
@@ -688,6 +701,305 @@ class GPTNeoXLayer(nn.Module):
         return outputs
 
 
+def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0, dtype: torch.dtype = torch.float32) -> torch.Tensor:
+    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].type(dtype) / dim))
+    t = torch.arange(end)
+    freqs = torch.outer(t, freqs).type(dtype)
+    sin, cos = torch.sin(freqs), torch.cos(freqs)
+    freqs_cis = cos + 1j * sin
+    return torch.tensor(freqs_cis)
+
+
+def apply_rotary_emb_(
+        xq: torch.Tensor,
+        xk: torch.Tensor,
+        freqs_cis: torch.Tensor,
+        dtype: torch.dtype = torch.float32,
+        freqs_cis_k: torch.Tensor = None,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    reshape_xq = xq.type(torch.float32).reshape(*xq.shape[:-1], -1, 2)
+    reshape_xk = xk.type(torch.float32).reshape(*xk.shape[:-1], -1, 2)
+
+    xq_ = torch.complex(reshape_xq[..., 0], reshape_xq[..., 1])
+    xk_ = torch.complex(reshape_xk[..., 0], reshape_xk[..., 1])
+
+    freqs_cis = torch.reshape(freqs_cis, (*freqs_cis.shape[:2], 1, *freqs_cis.shape[2:]))
+
+    xq_out = xq_ * freqs_cis
+    xq_out = torch.stack((torch.real(xq_out), torch.imag(xq_out)), dim=-1).reshape(*xq_out.shape[:-1], -1)
+    if freqs_cis_k is None:
+        xk_out = xk_ * freqs_cis
+        xk_out = torch.stack((torch.real(xk_out), torch.imag(xk_out)), dim=-1).reshape(*xk_out.shape[:-1], -1)
+    else:
+        freqs_cis_k = torch.reshape(freqs_cis_k, (*freqs_cis_k.shape[:2], 1, *freqs_cis_k.shape[2:]))
+        xk_out = xk_ * freqs_cis_k
+        xk_out = torch.stack((torch.real(xk_out), torch.imag(xk_out)), dim=-1).reshape(*xk_out.shape[:-1], -1)
+
+    return xq_out.type(dtype), xk_out.type(dtype)
+
+def apply_rotary_emb(
+        xq: torch.Tensor,
+        xk: torch.Tensor,
+        freqs_cis: torch.Tensor,
+        dtype: torch.dtype = torch.float32,
+        freqs_cis_k: torch.Tensor = None,
+        rot_dim: Optional[int] = None,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    if rot_dim is not None and rot_dim > 0:
+
+        # Separate the tensors based on the rotation dimensions
+        xq_rot, xq_pass = xq[..., :rot_dim], xq[..., rot_dim:]
+        xk_rot, xk_pass = xk[..., :rot_dim], xk[..., rot_dim:]
+
+        # freqs_q_rot = freqs_q[..., :rot_dim]
+        # freqs_k_rot = freqs_k[..., :rot_dim] if freqs_k is not None else None
+
+        # Apply the function on the parts that need rotation
+        ##print(freqs_cis.shape, xq_rot.shape, xk_rot.shape)
+        xq_rot, xk_rot = apply_rotary_emb_(xq_rot, xk_rot, freqs_cis, dtype=dtype, freqs_cis_k=freqs_cis_k)
+
+        # Concatenate the rotated and non-rotated parts
+        xq_out = torch.cat((xq_rot, xq_pass), dim=-1)
+        xk_out = torch.cat((xk_rot, xk_pass), dim=-1)
+    else:
+        xq_out, xk_out = apply_rotary_emb_(xq, xk, freqs_cis, dtype=dtype, freqs_cis_k=freqs_cis_k)
+
+    return xq_out, xk_out
+
+
+class GPTNeoXCrossAttention(nn.Module):
+
+    def __init__(self, config, dtype):
+        super().__init__()
+        self.config = config
+        self.dtype = dtype
+        self.embed_dim = config.hidden_size
+        self.num_heads = config.num_attention_heads
+        self.qk_layernorm = config.qk_layernorm
+        self.head_dim = self.embed_dim // self.num_heads
+
+        self.wq = nn.Linear(
+            self.embed_dim,
+            config.num_attention_heads * self.head_dim,
+            bias=self.config.attention_bias,
+            dtype=dtype
+        )
+
+        self.wk = nn.Linear(
+            self.embed_dim,
+            config.num_attention_heads * self.head_dim,
+            bias=self.config.attention_bias,
+            dtype=dtype
+        )
+
+        self.wv = nn.Linear(
+            self.embed_dim,
+            config.num_attention_heads * self.head_dim,
+            bias=self.config.attention_bias,
+            dtype=dtype
+        )
+
+        self.wo = nn.Linear(
+            self.embed_dim,
+            config.num_attention_heads * self.head_dim,
+            bias=self.config.attention_bias,
+            dtype=dtype
+        )
+
+        self.freqs_cis = precompute_freqs_cis(
+            self.head_dim,
+            config.max_position_embeddings * 2
+        )
+        self.null_k = nn.Parameter(torch.normal(mean=0, std=0.0001, size=(1, 1, self.num_heads, self.head_dim)))
+        self.null_v = nn.Parameter(torch.normal(mean=0, std=0.0001, size=(1, 1, self.num_heads, self.head_dim)))
+        if self.qk_layernorm:
+            self.q_layernorm = nn.LayerNorm(normalized_shape=self.head_dim, eps=self.config.layer_norm_eps, dtype=self.dtype)
+            self.k_layernorm = nn.LayerNorm(normalized_shape=self.head_dim, eps=self.config.layer_norm_eps, dtype=self.dtype)
+
+    def _split_heads(self, hidden_states):
+        return hidden_states.reshape(hidden_states.shape[:2] + (self.num_heads, self.head_dim))
+
+    def _merge_heads(self, hidden_states):
+        return hidden_states.reshape(hidden_states.shape[:2] + (self.embed_dim,))
+
+    def forward(
+            self,
+            hidden_states: torch.Tensor,
+            key_value_states: Optional[torch.Tensor] = None,
+            position_ids: Optional[torch.Tensor] = None,
+            kv_position_ids: Optional[torch.Tensor] = None,
+            attention_mask: Optional[torch.Tensor] = None,
+            retriever_scores: Optional[torch.Tensor] = None,
+            output_attentions: bool = False,
+            deterministic: bool = True,
+    ) -> Tuple[torch.Tensor]:
+        is_cross_attention = key_value_states is not None
+
+        xq = self.wq(hidden_states)
+        xq = self._split_heads(xq).type(self.dtype)
+        xq = self.q_layernorm(xq) if self.qk_layernorm else xq
+
+        if not is_cross_attention:
+            key_value_states = hidden_states
+
+        xk = self.wk(key_value_states)
+        xk = self._split_heads(xk).type(self.dtype)
+        xk = self.k_layernorm(xk) if self.qk_layernorm else xk
+
+        xv = self.wv(key_value_states)
+        xv = self._split_heads(xv).type(self.dtype)
+
+        null_k = self.k_layernorm(self.null_k) if self.qk_layernorm else self.null_k
+
+        query_length, key_length = xq.shape[1], xk.shape[1]
+        batch_size = hidden_states.shape[0]
+
+        if position_ids is None:
+            position_ids = torch.arange(query_length, dtype=torch.int32)
+            position_ids = torch.broadcast_to(position_ids[None, :], (batch_size, query_length)).type(torch.long)
+
+        freqs_cis = self.freqs_cis[position_ids].to(hidden_states.device)
+
+        if not is_cross_attention:
+            xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis, dtype=self.dtype, rot_dim=self.head_dim)
+        else:
+            if kv_position_ids is None:
+                kv_position_ids = torch.arange(key_length, dtype=torch.int32)
+                kv_position_ids = torch.broadcast_to(kv_position_ids[None, :], (batch_size, key_length))
+            freqs_cis_k = self.freqs_cis[kv_position_ids]
+            xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis, freqs_cis_k=freqs_cis_k, dtype=self.dtype, rot_dim=self.head_dim)
+
+        null_k = torch.broadcast_to(null_k, (batch_size, 1, self.num_heads, self.head_dim)).type(self.dtype)
+        xk = torch.cat((xk, null_k), dim=-3)
+        null_v = torch.broadcast_to(self.null_v, (batch_size, 1, self.num_heads, self.head_dim)).type(self.dtype)
+        xv = torch.cat((xv, null_v), dim=-3)
+
+        if attention_mask is not None:
+            null_mask = torch.ones((attention_mask.shape[0], 1), dtype=torch.float32).to(hidden_states.device)
+            attention_mask = torch.cat((attention_mask, null_mask), dim=-1)
+            attention_mask = attention_mask.unsqueeze(-2).unsqueeze(-2)
+
+            if retriever_scores is None:
+                attention_bias = torch.full(attention_mask.shape, 0.0).type(self.dtype).to(hidden_states.device)
+            else:
+                null_ret_score = torch.zeros((retriever_scores.shape[0], 1), dtype=torch.float32).to(hidden_states.device)
+                attention_bias = torch.cat((retriever_scores, null_ret_score), dim=-1)
+                attention_bias = attention_bias.unsqueeze(-2).unsqueeze(-2)
+
+            attention_bias[attention_mask <= 0] = torch.finfo(self.dtype).min
+
+            if xq.shape[0] != attention_bias.shape[0]:
+                attention_bias = attention_bias[:batch_size, ...]
+        else:
+            attention_bias = None
+
+        attn_weights = my_dot_product_attention_weights(
+            xq,
+            xk,
+            bias=attention_bias,
+            dropout_rate=self.config.attention_dropout,
+            deterministic=deterministic,
+            dtype=self.dtype,
+            apply_tanh=self.config.tanh_xatt,
+        )
+
+        attn_output = torch.einsum("...hqk,...khd->...qhd", attn_weights, xv.type(self.dtype))
+
+        attn_output = self._merge_heads(attn_output)
+        attn_output = self.wo(attn_output).type(self.dtype)
+        outputs = (attn_output, attn_weights) if output_attentions else (attn_output,)
+
+        return outputs
+
+class GPTNeoXRetriever(nn.Module):
+    def __init__(self, config, dtype):
+        super().__init__()
+        self.config = config
+        self.dtype = dtype
+
+        self.preret_bidir_attention = GPTNeoXCrossAttention(self.config, dtype=self.dtype)
+        self.preret_bi_attention_norm = nn.LayerNorm(normalized_shape=self.config.hidden_size,
+                                                     eps=self.config.layer_norm_eps, dtype=self.dtype)
+        self.pre_key_norm = nn.LayerNorm(normalized_shape=self.config.hidden_size, eps=self.config.layer_norm_eps,
+                                         dtype=self.dtype, )
+        self.key_projection = nn.Linear(
+            self.config.hidden_size,
+            self.config.hidden_size,
+            dtype=self.dtype,
+            bias=True,
+        )
+        self.pre_query_norm = nn.LayerNorm(normalized_shape=self.config.hidden_size,
+                                           eps=self.config.layer_norm_eps,
+                                           dtype=self.dtype, )
+        self.query_projection = nn.Linear(
+            self.config.hidden_size,
+            self.config.hidden_size,
+            dtype=self.dtype,
+            bias=True,
+        )
+        self.fill_value = self.config.retriever_fill_value
+        self.n_skip_chunks = self.config.max_position_embeddings // self.config.chunk_size
+        self.num_neighbors = self.config.num_neighbors
+        self.threshold_nei_scores = self.config.threshold_nei_scores
+        self.num_sequence_chunks = self.config.max_position_embeddings // self.config.chunk_size
+        self.learned_margin = nn.Parameter(torch.Tensor([0]))
+
+        self.scheduled_sampling_schedule_fn = None
+
+
+    def preret_encode(self,
+                      hidden_states,
+                      attention_mask,
+                      deterministic,
+                      pooling_size: int,
+                      output_attentions: bool = False, ):
+        original_hidden_states_shape = hidden_states.shape
+        original_attention_mask_shape = attention_mask.shape
+
+        original_hidden_states = einops.rearrange(hidden_states, 'b (l c) ... -> (b l) c ... ', c=pooling_size)
+        attention_mask = einops.rearrange(attention_mask, 'b (l c) ... -> (b l) c ... ', c=pooling_size)
+
+        # add a chunk dimension
+        # 1. apply bi-dir attention
+        preret_bi_output = self.preret_bidir_attention(
+            self.preret_bi_attention_norm(original_hidden_states),
+            attention_mask=attention_mask,
+            deterministic=deterministic,
+            output_attentions=output_attentions)
+
+        encoded_hidden_states = preret_bi_output[0] + original_hidden_states
+
+        # 2. pool
+        pooled_hidden_states = encoded_hidden_states.mean(dim=-2)
+
+        # 3. project to query chunks and key chunks
+        key_chunks = self.key_projection(self.pre_key_norm(pooled_hidden_states))
+        query_chunks = self.query_projection(self.pre_query_norm(pooled_hidden_states))
+        chunk_mask = attention_mask.type(torch.bool).any(-1)[..., None]
+        if chunk_mask.shape[0] != pooled_hidden_states.shape[0]:
+            chunk_mask = chunk_mask[:pooled_hidden_states.shape[0], ...]
+
+        # nei_pos = jnp.clip(jnp.cumsum(attention_mask, axis=-1) - 1, a_min=0, a_max=2*self.config.chunk_size-1)
+        original_hidden_states = original_hidden_states.reshape(original_hidden_states_shape)
+        attention_mask = attention_mask.reshape(original_attention_mask_shape)
+
+        key_chunks = key_chunks / torch.linalg.norm(key_chunks, dim=-1).unsqueeze(-1)
+        query_chunks = query_chunks / torch.linalg.norm(query_chunks, dim=-1).unsqueeze(-1)
+
+        return GPTNeoXRetrieverEncodedOutput(
+            original_hidden_states=original_hidden_states,
+            encoded_hidden_states=encoded_hidden_states,
+            attention_mask=attention_mask,
+            key_chunks=key_chunks,
+            query_chunks=query_chunks,
+            chunk_mask=chunk_mask,
+            preret_attention=preret_bi_output[1:],
+        )
+
+
+
+
+
 GPT_NEOX_START_DOCSTRING = r"""
     This model is a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) sub-class. Use
     it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage and
@@ -741,6 +1053,16 @@ GPT_NEOX_INPUTS_DOCSTRING = r"""
 """
 
 
+
+class GPTNeoXBlockCollection(nn.Module):
+
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+
+        self.blocks = nn.ModuleList([GPTNeoXLayer(config) for _ in range(config.num_hidden_layers // 2)])
+
+
 @add_start_docstrings(
     "The bare GPTNeoX Model transformer outputting raw hidden-states without any specific head on top.",
     GPT_NEOX_START_DOCSTRING,
@@ -752,8 +1074,10 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
 
         self.embed_in = nn.Embedding(config.vocab_size, config.hidden_size)
         self.emb_dropout = nn.Dropout(config.hidden_dropout)
-        self.layers = nn.ModuleList([GPTNeoXLayer(config) for _ in range(config.num_hidden_layers // 2)])
+        self.layers = GPTNeoXBlockCollection(self.config)
         self.final_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+
+        self.retriever = GPTNeoXRetriever(self.config, dtype=self.dtype)
 
         self._attn_implementation = config._attn_implementation
 
@@ -834,6 +1158,7 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
 
         # Attention mask.
         attention_mask = attention_mask.view(batch_size, -1) if attention_mask is not None else None
+        original_attention_mask = attention_mask
         if self._attn_implementation == "flash_attention_2":
             attention_mask = attention_mask if (attention_mask is not None and 0 in attention_mask) else None
         elif self._attn_implementation == "sdpa" and not output_attentions and head_mask is None:
@@ -881,7 +1206,7 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         presents = () if use_cache else None
         all_attentions = () if output_attentions else None
         all_hidden_states = () if output_hidden_states else None
-        for i, (layer, layer_past) in enumerate(zip(self.layers, past_key_values)):
+        for i, (layer, layer_past) in enumerate(zip(self.layers.blocks, past_key_values)):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
@@ -921,12 +1246,15 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         if not return_dict:
             return tuple(v for v in [hidden_states, presents, all_hidden_states, all_attentions] if v is not None)
 
-        return BaseModelOutputWithPast(
-            last_hidden_state=hidden_states,
-            past_key_values=presents,
-            hidden_states=all_hidden_states,
-            attentions=all_attentions,
+        encoded_output = self.retriever.preret_encode(
+            hidden_states,
+            original_attention_mask,
+            False, # deterministic
+            input_ids.shape[-1], # chunk size
+            output_attentions
         )
+
+        return encoded_output
 
 
 @add_start_docstrings(
@@ -1022,30 +1350,7 @@ class GPTNeoXForCausalLM(GPTNeoXPreTrainedModel):
             is_causal=is_causal,
         )
 
-        hidden_states = outputs[0]
-        lm_logits = self.embed_out(hidden_states)
-
-        lm_loss = None
-        if labels is not None:
-            # move labels to correct device to enable model parallelism
-            labels = labels.to(lm_logits.device)
-            # we are doing next-token prediction; shift prediction scores and input ids by one
-            shift_logits = lm_logits[:, :-1, :].contiguous()
-            labels = labels[:, 1:].contiguous()
-            loss_fct = CrossEntropyLoss()
-            lm_loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
-
-        if not return_dict:
-            output = (lm_logits,) + outputs[1:]
-            return ((lm_loss,) + output) if lm_loss is not None else output
-
-        return CausalLMOutputWithPast(
-            loss=lm_loss,
-            logits=lm_logits,
-            past_key_values=outputs.past_key_values,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-        )
+        return outputs
 
     def prepare_inputs_for_generation(
         self, input_ids, past_key_values=None, attention_mask=None, inputs_embeds=None, **kwargs
