@@ -1,3 +1,6 @@
+import sys
+sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm")
+
 import argparse
 import os
 from functools import partial
