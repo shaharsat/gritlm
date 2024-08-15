@@ -1255,6 +1255,9 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
             past_key_values
         )
 
+        print(encoded_output['key_chunks'].shape, hidden_states.shape)
+
+
         if not return_dict:
             return tuple(v for v in [
                 encoded_output['key_chunks'],
