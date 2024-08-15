@@ -144,8 +144,8 @@ class GritLMTrainModel(GritLM):
             kwargs['is_causal'] = False
         out = (getattr(self.model, self.embedding_attr) if self.embedding_attr else self.model)(**kwargs)[0]
 
-        if self.projection is not None:
-            out = self.projection(out)
+        #if self.projection is not None:
+        #    out = self.projection(out)
         
         # Mask out the instruction tokens for pooling
         if instruction_lens is not None:
