@@ -149,8 +149,8 @@ class GritLM(torch.nn.Module):
                 assert len(all_kv_caches) == 0, "Can only get cache for one batch at a time"
                 all_kv_caches = outputs[1]
 
-            if self.projection:
-                last_hidden_state = self.projection(last_hidden_state)
+            #if self.projection:
+            #    last_hidden_state = self.projection(last_hidden_state)
             if (instruction) and (embed_instruction is False) and ("mean" in self.pooling_method):
                 # Remove instruction tokens from the embeddings by masking them
                 instruction_tokens = self.tokenizer(
@@ -161,7 +161,8 @@ class GritLM(torch.nn.Module):
                     add_special_tokens=add_special_tokens,
                 )["input_ids"]
                 inputs['attention_mask'][:, :len(instruction_tokens)] = 0
-            embeddings = self.pooling(last_hidden_state, inputs['attention_mask'], recast=recast)
+            #embeddings = self.pooling(last_hidden_state, inputs['attention_mask'], recast=recast)
+            embeddings = last_hidden_state
             # Normalize can change the dtype (https://discuss.pytorch.org/t/tensor-in-float16-is-transformed-into-float32-after-torch-norm/110891)
             if self.normalized: 
                 in_dtype = embeddings.dtype

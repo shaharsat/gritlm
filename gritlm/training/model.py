@@ -157,7 +157,8 @@ class GritLMTrainModel(GritLM):
                 # Make sure not all zeros - If this happens it is a bug
                 assert attention_mask[i].sum() > 0, f"All 0: {attention_mask[i]}, l: {l}"
 
-        reps = self.pooling(out, attention_mask)
+        #reps = self.pooling(out, attention_mask)
+        reps = out
         # Normalize can change the dtype (https://discuss.pytorch.org/t/tensor-in-float16-is-transformed-into-float32-after-torch-norm/110891)
         if self.normalized: 
             in_dtype = reps.dtype
