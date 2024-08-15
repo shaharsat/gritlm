@@ -1246,9 +1246,6 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
 
-        if not return_dict:
-            return tuple(v for v in [hidden_states, presents, all_hidden_states, all_attentions] if v is not None)
-
         encoded_output = self.retriever.preret_encode(
             hidden_states,
             original_attention_mask,
@@ -1257,6 +1254,20 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
             output_attentions,
             past_key_values
         )
+
+        if not return_dict:
+            return tuple(v for v in [
+                encoded_output['key_chunks'],
+                encoded_output['past_key_values'],
+                encoded_output['original_hidden_states'],
+                encoded_output['encoded_hidden_states'],
+                encoded_output['attention_mask'],
+                encoded_output['query_chunks'],
+                encoded_output['chunk_mask'],
+                encoded_output['preret_attention'],
+            ]
+            if v is not None)
+
 
         return encoded_output
 
