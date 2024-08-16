@@ -5,6 +5,8 @@ from functools import partial
 from mteb import MTEB
 import torch
 
+import sys
+sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm")
 from gritlm import GritLM
 
 SET_TO_TASK_TO_DS_TO_PROMPT = {
