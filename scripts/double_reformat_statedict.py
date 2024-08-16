@@ -13,7 +13,7 @@ if not list(sd.keys())[0].startswith(prefix):
     sys.exit(0)
 # Remove model i.e. model.h.1 -> h.1
 
-new_sd = []
+new_sd = {}
 for k, v in sd.items():
     if k.startswith(layer_prefix):
         new_value = 'layers.blocks.' + k[len(layer_prefix):]
@@ -22,6 +22,6 @@ for k, v in sd.items():
     else:
         new_value = k
 
-    new_sd.append(new_value)
+    new_sd[new_value] = v
 
-torch.save(new_sd, sd_path)
+torch.save(sd, sd_path)
