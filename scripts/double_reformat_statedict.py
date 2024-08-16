@@ -24,4 +24,4 @@ for k, v in sd.items():
 
     new_sd[new_value] = v
 
-torch.save(sd, sd_path)
+torch.save(new_sd, sd_path)
