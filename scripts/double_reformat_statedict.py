@@ -8,11 +8,6 @@ layer_prefix = 'model.gpt_neox.layers.'
 model_prefix = 'model.'
 
 sd = torch.load(sd_path)
-# Check if already reformatted by checking if first key has model. prefix
-if not list(sd.keys())[0].startswith(model_prefix):
-    print('SD seems already reformatted: ', sd.keys())
-    sys.exit(0)
-# Remove model i.e. model.h.1 -> h.1
 
 new_sd = {}
 for k, v in sd.items():
