@@ -11,5 +11,5 @@ if not list(sd.keys())[0].startswith(prefix):
     print('SD seems already reformatted: ', sd.keys())
     sys.exit(0)
 # Remove model i.e. model.h.1 -> h.1
-sd = {'layers.blocks.' + k[len(prefix):] if k.startswith('model.model.layers.') else k: v for k, v in sd.items()}
+sd = {'layers.blocks.' + k[len(prefix):] if k.startswith(prefix) else k: v for k, v in sd.items()}
 torch.save(sd, sd_path)
