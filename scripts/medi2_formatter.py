@@ -18,7 +18,7 @@ with open('medi2-train.jsonl') as f:
         training_example['neg'][0][0] = ''
 
         training_data.append({
-            'query': training_example['query'],
+            'query': training_example['query'][1],
             'pos': training_example['pos'],
             'neg': training_example['neg'],
         })
