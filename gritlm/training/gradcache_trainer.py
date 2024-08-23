@@ -104,6 +104,7 @@ class GradCacheTrainer(Trainer):
             self.propagate_args_to_deepspeed()
 
     def _save_checkpoint(self, model, trial, metrics=None):
+        print('Start saving checkpoint')
         # In all cases, including ddp/dp/deepspeed, self.model is always a reference to the model we
         # want to save except FullyShardedDDP.
         # assert unwrap_model(model) is self.model, "internal model should be a reference to self.model"
@@ -174,6 +175,8 @@ class GradCacheTrainer(Trainer):
         # Maybe delete some older checkpoints.
         if self.args.should_save:
             self._rotate_checkpoints(use_mtime=True, output_dir=run_dir)
+
+        print('Finished saving checkpoint')
 
     def get_loss_no_gas(self, *args, **kwargs):
         model = kwargs.pop("model")
