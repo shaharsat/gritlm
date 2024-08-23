@@ -129,13 +129,21 @@ class GradCacheTrainer(Trainer):
             staging_output_dir = output_dir
         else:
             staging_output_dir = os.path.join(run_dir, f"tmp-{checkpoint_folder}")
+
+        print('1')
+
         self.save_model(staging_output_dir, _internal_call=True)
 
+        print('2')
+
         if not self.args.save_only_model:
+            print('3')
             # Save optimizer and scheduler
             self._save_optimizer_and_scheduler(staging_output_dir)
             # Save RNG state
             self._save_rng_state(staging_output_dir)
+
+        print('4')
 
         # Determine the new best metric / best model checkpoint
         if metrics is not None and self.args.metric_for_best_model is not None:
@@ -153,9 +161,13 @@ class GradCacheTrainer(Trainer):
                 self.state.best_metric = metric_value
                 self.state.best_model_checkpoint = output_dir
 
+        print('5')
+
         # Save the Trainer state
         if self.args.should_save:
             self.state.save_to_json(os.path.join(staging_output_dir, TRAINER_STATE_NAME))
+
+        print('6')
 
         if self.args.push_to_hub:
             self._push_from_checkpoint(staging_output_dir)
