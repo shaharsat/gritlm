@@ -200,6 +200,8 @@ class GradCacheTrainer(Trainer):
                         print('os.rename(staging_output_dir, output_dir)')
                         os.rename(staging_output_dir, output_dir)
                         print('done renaming')
+                else:
+                    torch.distributed.barrier()
 
         # Maybe delete some older checkpoints.
         if self.args.should_save:
