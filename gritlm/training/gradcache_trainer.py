@@ -200,7 +200,7 @@ class GradCacheTrainer(Trainer):
         if self.args.should_save:
             self._rotate_checkpoints(use_mtime=True, output_dir=run_dir)
 
-        print('Finished saving checkpoint')
+        print('Finished saving checkpoint', self.args.distributed_state.is_main_process)
 
     def get_loss_no_gas(self, *args, **kwargs):
         model = kwargs.pop("model")
