@@ -179,6 +179,7 @@ class GradCacheTrainer(Trainer):
         print('Finished waiting for everyone')
         # Then go through the rewriting process starting on process 0
         if staging_output_dir != output_dir:
+            print('self.args.save_on_each_node', self.args.save_on_each_node)
             with self.args.main_process_first(
                 desc="Renaming model checkpoint folder to true location", local=self.args.save_on_each_node
             ):
