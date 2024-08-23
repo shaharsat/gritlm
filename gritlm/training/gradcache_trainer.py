@@ -188,8 +188,13 @@ class GradCacheTrainer(Trainer):
                 if os.path.exists(staging_output_dir):
                     print('torch.distributed.is_initialized()', torch.distributed.is_initialized())
                     if torch.distributed.is_initialized():
+                        print('torch.distributed.get_rank()', torch.distributed.get_rank())
                         if torch.distributed.get_rank() == 0:
+                            print('os.rename(staging_output_dir, output_dir)')
                             os.rename(staging_output_dir, output_dir)
+                            print('done renaming')
+
+                        print('torch.distributed.barrier()')
                         torch.distributed.barrier()
                     else:
                         print('os.rename(staging_output_dir, output_dir)')
