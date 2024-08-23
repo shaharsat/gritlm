@@ -34,11 +34,13 @@ class DistributedContrastiveLoss:
             self.world_size = dist.get_world_size()
 
     def __call__(self, q_reps, p_reps):
+        print(f'1. {q_reps.shape} - {p_reps.shape}')
         if self.negatives_cross_device:
             # This gathers both negatives and positives.
             # It could likely be optimized by only gathering negatives.
             q_reps = self._dist_gather_tensor(q_reps)
             p_reps = self._dist_gather_tensor(p_reps)
+            print(f'2. {q_reps.shape} - {p_reps.shape}')
         scores = self.compute_similarity(q_reps, p_reps) / self.temperature
         scores = scores.view(q_reps.size(0), -1)
 
@@ -61,6 +63,9 @@ class DistributedContrastiveLoss:
 
     def compute_similarity(self, q_reps, p_reps):
         if len(p_reps.size()) == 2: return torch.matmul(q_reps, p_reps.transpose(0, 1))
+
+        print(q_reps.shape, p_reps.shape, p_reps.transpose(-2, -1).shape)
+
         return torch.matmul(q_reps, p_reps.transpose(-2, -1))
 
 class NextTokenLoss:
@@ -144,8 +149,8 @@ class GritLMTrainModel(GritLM):
             kwargs['is_causal'] = False
         out = (getattr(self.model, self.embedding_attr) if self.embedding_attr else self.model)(**kwargs)[0]
 
-        #if self.projection is not None:
-        #    out = self.projection(out)
+        if self.projection is not None:
+            out = self.projection(out)
         
         # Mask out the instruction tokens for pooling
         if instruction_lens is not None:
@@ -157,8 +162,7 @@ class GritLMTrainModel(GritLM):
                 # Make sure not all zeros - If this happens it is a bug
                 assert attention_mask[i].sum() > 0, f"All 0: {attention_mask[i]}, l: {l}"
 
-        #reps = self.pooling(out, attention_mask)
-        reps = out
+        reps = self.pooling(out, attention_mask)
         # Normalize can change the dtype (https://discuss.pytorch.org/t/tensor-in-float16-is-transformed-into-float32-after-torch-norm/110891)
         if self.normalized: 
             in_dtype = reps.dtype
@@ -181,6 +185,9 @@ class GritLMTrainModel(GritLM):
             passage: [b*s, m] where s is group size (usually 2)
             generative: [b, m]
         """
+        print(query['input_ids'].shape)
+        print(passage['input_ids'].shape)
+
         # Do generative first, as emb contains an all-reduce (verified to be faster)
         if generative is not None:
             if self.gen_loss_fn is not None:
@@ -206,7 +213,9 @@ class GritLMTrainModel(GritLM):
             else:
                 with torch.no_grad():
                     p_reps = self.encode(passage)
-            
+
+        print(q_reps.shape, p_reps.shape)
+
         loss_emb = self.emb_loss_fn(
             q_reps, p_reps
         ) if (q_reps is not None and p_reps is not None) else None        
