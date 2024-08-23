@@ -184,7 +184,7 @@ class GradCacheTrainer(Trainer):
                 desc="Renaming model checkpoint folder to true location", local=self.args.save_on_each_node
             ):
                 print('main process works')
-                print('os.path.exists(staging_output_dir)', os.path.exists(staging_output_dir))
+                print('os.path.exists(staging_output_dir)', os.path.exists(staging_output_dir), staging_output_dir)
                 if os.path.exists(staging_output_dir):
                     print('torch.distributed.is_initialized()', torch.distributed.is_initialized())
                     if torch.distributed.is_initialized():
