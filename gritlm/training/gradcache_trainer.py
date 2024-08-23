@@ -108,7 +108,6 @@ class GradCacheTrainer(Trainer):
             self.propagate_args_to_deepspeed()
 
     def _save_checkpoint(self, model, trial, metrics=None):
-        print('Start saving checkpoint')
         # In all cases, including ddp/dp/deepspeed, self.model is always a reference to the model we
         # want to save except FullyShardedDDP.
         # assert unwrap_model(model) is self.model, "internal model should be a reference to self.model"
@@ -130,20 +129,13 @@ class GradCacheTrainer(Trainer):
         else:
             staging_output_dir = os.path.join(run_dir, f"tmp-{checkpoint_folder}")
 
-        print('1')
-
         self.save_model(staging_output_dir, _internal_call=True)
 
-        print('2')
-
         if not self.args.save_only_model:
-            print('3')
             # Save optimizer and scheduler
             self._save_optimizer_and_scheduler(staging_output_dir)
             # Save RNG state
             self._save_rng_state(staging_output_dir)
-
-        print('4')
 
         # Determine the new best metric / best model checkpoint
         if metrics is not None and self.args.metric_for_best_model is not None:
@@ -161,53 +153,35 @@ class GradCacheTrainer(Trainer):
                 self.state.best_metric = metric_value
                 self.state.best_model_checkpoint = output_dir
 
-        print('5')
-
         # Save the Trainer state
         if self.args.should_save:
             self.state.save_to_json(os.path.join(staging_output_dir, TRAINER_STATE_NAME))
 
-        print('6')
-
         if self.args.push_to_hub:
             self._push_from_checkpoint(staging_output_dir)
 
-        print('Starting to waiting for everyone')
         # Place checkpoint in final location after all saving is finished.
         # First wait for everyone to finish writing
         self.args.distributed_state.wait_for_everyone()
-        print('Finished waiting for everyone')
         # Then go through the rewriting process starting on process 0
         if staging_output_dir != output_dir:
-            print('self.args.save_on_each_node', self.args.save_on_each_node)
             with self.args.main_process_first(
                 desc="Renaming model checkpoint folder to true location", local=self.args.save_on_each_node
             ):
-                print('main process works')
-                print('os.path.exists(staging_output_dir)', os.path.exists(staging_output_dir), staging_output_dir)
                 if os.path.exists(staging_output_dir):
-                    print('torch.distributed.is_initialized()', torch.distributed.is_initialized())
                     if torch.distributed.is_initialized():
-                        print('torch.distributed.get_rank()', torch.distributed.get_rank())
                         if torch.distributed.get_rank() == 0:
-                            print('os.rename(staging_output_dir, output_dir)')
                             os.rename(staging_output_dir, output_dir)
-                            print('done renaming')
 
-                        print('torch.distributed.barrier()')
                         torch.distributed.barrier()
                     else:
-                        print('os.rename(staging_output_dir, output_dir)')
                         os.rename(staging_output_dir, output_dir)
-                        print('done renaming')
                 else:
                     torch.distributed.barrier()
 
         # Maybe delete some older checkpoints.
         if self.args.should_save:
             self._rotate_checkpoints(use_mtime=True, output_dir=run_dir)
-
-        print('Finished saving checkpoint', self.args.distributed_state.is_main_process)
 
     def get_loss_no_gas(self, *args, **kwargs):
         model = kwargs.pop("model")
