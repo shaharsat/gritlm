@@ -1,4 +1,6 @@
 import sys
+
+
 sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/gritlm")
 
 from typing import Dict, List, Union, cast
@@ -10,6 +12,7 @@ from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
 from models.modeling_mistral_gritlm import MistralForCausalLM
 from models.modeling_gpt_neox_gritlm import GPTNeoXForCausalLM
+from models.modeling_llama import LlamaForCausalLM
 
 
 class GritLM(torch.nn.Module):
@@ -35,6 +38,8 @@ class GritLM(torch.nn.Module):
                 self.model = MistralForCausalLM.from_pretrained(model_name_or_path, **kwargs)
             elif 'pythia' in model_name_or_path.lower():
                 self.model = GPTNeoXForCausalLM.from_pretrained(model_name_or_path, **kwargs)
+            elif 'tinyllama' in model_name_or_path.lower():
+                self.model = LlamaForCausalLM.from_pretrained(model_name_or_path, **kwargs)
             else:
                 self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True, **kwargs)
             self.embedding_attr = None
