@@ -193,6 +193,7 @@ class GradCacheTrainer(Trainer):
                     else:
                         print('os.rename(staging_output_dir, output_dir)')
                         os.rename(staging_output_dir, output_dir)
+                        print('done renaming')
 
         # Maybe delete some older checkpoints.
         if self.args.should_save:
