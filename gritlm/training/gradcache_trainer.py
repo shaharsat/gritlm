@@ -407,7 +407,9 @@ class GradCacheTrainer(Trainer):
                 )
             # If using the .encode function instead, the below does work with FSDP
             # Somehow FSDP requires it to be the forward function
-            def model_call(self, model, model_input): return model(model_input)
+            def model_call(self, model, model_input):
+                print(model_input['input_ids'])
+                return model(model_input)
             gc.model_call = model_call.__get__(gc)
             no_sync_except_last = torch.distributed.is_initialized()
 
