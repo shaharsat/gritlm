@@ -213,10 +213,7 @@ class GritLMTrainModel(GritLM):
 
         loss = sum([x for x in [loss_emb, loss_gen] if x is not None])
 
-        if torch.nan in q_reps:
-            print(f'q_reps: {q_reps}, p_reps: {p_reps}')
-            print(f'query={query}, passage={passage}')
-        elif torch.randint(low=0, high=100, size=(1,)) == 0:
+        if q_reps.isnan().any():
             print(f'q_reps: {q_reps}, p_reps: {p_reps}')
             print(f'query={query}, passage={passage}')
 

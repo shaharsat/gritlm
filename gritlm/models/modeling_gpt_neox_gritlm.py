@@ -958,6 +958,9 @@ class GPTNeoXRetriever(nn.Module):
         original_hidden_states_shape = hidden_states.shape
         original_attention_mask_shape = attention_mask.shape
 
+        if hidden_states.isnan().any():
+            print(f'preret_encode: hidden_states={hidden_states}')
+
         original_hidden_states = einops.rearrange(hidden_states, 'b (l c) ... -> (b l) c ... ', c=pooling_size)
         attention_mask = einops.rearrange(attention_mask, 'b (l c) ... -> (b l) c ... ', c=pooling_size)
 
@@ -1240,6 +1243,11 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
                     is_causal=is_causal,
                 )
             hidden_states = outputs[0]
+
+
+            if hidden_states.isnan().any():
+                print(f'{i} layer is nan')
+
             if use_cache is True:
                 presents = presents + (outputs[1],)
             if output_attentions:
