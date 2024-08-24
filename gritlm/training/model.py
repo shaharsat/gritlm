@@ -216,6 +216,9 @@ class GritLMTrainModel(GritLM):
         if torch.nan in q_reps:
             print(f'q_reps: {q_reps}, p_reps: {p_reps}')
             print(f'query={query}, passage={passage}')
+        elif torch.ranint(100) == 0:
+            print(f'q_reps: {q_reps}, p_reps: {p_reps}')
+            print(f'query={query}, passage={passage}')
 
         # Also return q_reps in case of GradCache
         return GritLMTrainOutput(
