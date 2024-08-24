@@ -194,7 +194,7 @@ class GritLMTrainModel(GritLM):
         else:
             loss_gen = None
 
-        print(query.keys())
+        print(type(query['input_ids']))
         #print(f'query={query["input_ids"].shape}, passage={passage["input_ids"].shape}')
 
         if (q_reps is None) and (query is not None):
