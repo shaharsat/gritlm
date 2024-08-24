@@ -127,6 +127,7 @@ class GritLM(torch.nn.Module):
                 instruction + s + self.embed_eos for s in sentences[start_index:start_index + batch_size]
             ]
             # This will prepend the bos token if the tokenizer has `add_bos_token=True`
+            print(sentences_batch[0])
             inputs = self.tokenizer(
                 sentences_batch,
                 padding='max_length',
@@ -135,6 +136,8 @@ class GritLM(torch.nn.Module):
                 max_length=max_length,
                 add_special_tokens=add_special_tokens,
             ).to(self.device)
+
+            print(inputs['input_ids'][0])
 
             if (self.attn is not None) and (self.attn[:2] == 'bb'):
                 inputs["is_causal"] = False
