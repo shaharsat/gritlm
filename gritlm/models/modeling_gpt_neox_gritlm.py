@@ -972,7 +972,8 @@ class GPTNeoXRetriever(nn.Module):
         encoded_hidden_states = preret_bi_output[0] + original_hidden_states
 
         # 2. pool
-        pooled_hidden_states = encoded_hidden_states.mean(dim=-2)
+        masked_encoded_hidden_states = attention_mask.unsqueeze(-1).expand_as(encoded_hidden_states) * encoded_hidden_states
+        pooled_hidden_states = masked_encoded_hidden_states.mean(dim=-2)
 
         # 3. project to query chunks and key chunks
         key_chunks = self.key_projection(self.pre_key_norm(pooled_hidden_states))
@@ -1128,6 +1129,7 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
             If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding (see
             `past_key_values`).
         """
+
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
