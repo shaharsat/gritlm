@@ -39,7 +39,6 @@ class DistributedContrastiveLoss:
             # It could likely be optimized by only gathering negatives.
             q_reps = self._dist_gather_tensor(q_reps)
             p_reps = self._dist_gather_tensor(p_reps)
-        print(f'q_reps: {q_reps[0]}, p_reps: {p_reps[0]}')
         scores = self.compute_similarity(q_reps, p_reps) / self.temperature
         scores = scores.view(q_reps.size(0), -1)
 
