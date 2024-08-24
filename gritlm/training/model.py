@@ -194,9 +194,6 @@ class GritLMTrainModel(GritLM):
         else:
             loss_gen = None
 
-        print(query['input_ids'].shape)
-        #print(f'query={query["input_ids"].shape}, passage={passage["input_ids"].shape}')
-
         if (q_reps is None) and (query is not None):
             if q_grad:
                 q_reps = self.encode(query)
@@ -216,6 +213,9 @@ class GritLMTrainModel(GritLM):
         ) if (q_reps is not None and p_reps is not None) else None        
 
         loss = sum([x for x in [loss_emb, loss_gen] if x is not None])
+
+        if torch.nan in q_reps:
+            print(f'query={query}, passage={passage}')
 
         # Also return q_reps in case of GradCache
         return GritLMTrainOutput(
