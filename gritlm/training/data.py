@@ -176,6 +176,9 @@ class CustomCollator(DataCollatorWithPadding):
         if isinstance(passage[0], list):
             passage = sum(passage, [])
 
+        print('################')
+        print(query[0])
+
         features = {}
 
         # If each sample is a tuple it is of format (instruction, text)
