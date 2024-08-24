@@ -281,7 +281,7 @@ class CustomCollator(DataCollatorWithPadding):
                         features["generative"]["labels"][i, cur_len:cur_len+l] = -100
                     cur_len += l
 
-        print(features['query'])
+        print(features['query'][0])
 
         return features
 
