@@ -216,7 +216,7 @@ class GritLMTrainModel(GritLM):
         if torch.nan in q_reps:
             print(f'q_reps: {q_reps}, p_reps: {p_reps}')
             print(f'query={query}, passage={passage}')
-        elif torch.randint(low=0, high=100, size=(1,)):
+        elif torch.randint(low=0, high=10000, size=(1,)):
             print(f'q_reps: {q_reps}, p_reps: {p_reps}')
             print(f'query={query}, passage={passage}')
 
