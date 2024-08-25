@@ -1178,7 +1178,8 @@ if __name__ == '__main__':
                 if task_name not in SET_TO_TASK_TO_DS_TO_PROMPT[args.instruction_set][task_type]:
                     print('Skipping task: ' + task_name)
                     continue
-                instruction = SET_TO_TASK_TO_DS_TO_PROMPT[args.instruction_set][task_type][task_name]
+                #instruction = SET_TO_TASK_TO_DS_TO_PROMPT[args.instruction_set][task_type][task_name]
+                instruction = ""
             if isinstance(instruction, dict):
                 if args.num_shots is not None:
                     instruction = {
