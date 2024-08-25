@@ -170,6 +170,8 @@ class GradCacheTrainer(Trainer):
                         torch.distributed.barrier()
                     else:
                         os.rename(staging_output_dir, output_dir)
+                else:
+                    torch.distributed.barrier()
 
         # Maybe delete some older checkpoints.
         if self.args.should_save:
