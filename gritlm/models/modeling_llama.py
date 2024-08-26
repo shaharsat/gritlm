@@ -661,10 +661,6 @@ class LlamaSdpaAttention(LlamaAttention):
             # in SDPA to support both torch.compile's dynamic shapes and full graph options. An inline conditional prevents dynamic shapes from compiling.
             is_causal = True if attention_mask is None and q_len > 1 else False
 
-
-        print('###################')
-        print(self.attention_dropout, self.training)
-
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_states,
             key_states,
