@@ -337,7 +337,7 @@ class LlamaAttention(nn.Module):
                 "when creating this class."
             )
 
-        self.attention_dropout = config.attention_dropout
+        self.attention_dropout = 0.1 #config.attention_dropout
         self.hidden_size = config.hidden_size
         self.num_heads = config.num_attention_heads
         self.head_dim = self.hidden_size // self.num_heads

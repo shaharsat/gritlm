@@ -40,7 +40,6 @@ class GritLM(torch.nn.Module):
                 self.model = GPTNeoXForCausalLM.from_pretrained(model_name_or_path, **kwargs)
             elif 'tinyllama' in model_name_or_path.lower():
                 self.model = LlamaForCausalLM.from_pretrained(model_name_or_path, **kwargs)
-                self.model.config.update({'attention_dropout': 0.1})
             else:
                 self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True, **kwargs)
             self.embedding_attr = None

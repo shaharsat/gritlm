@@ -114,7 +114,6 @@ def main():
         num_labels=1,
         token=''
     )
-    config.update({'attention_dropout': 0.1})
     logger.info('Config: %s', config)
     
     if not(tokenizer.pad_token) and tokenizer.bos_token:
