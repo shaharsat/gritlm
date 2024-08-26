@@ -662,8 +662,8 @@ class LlamaSdpaAttention(LlamaAttention):
             is_causal = True if attention_mask is None and q_len > 1 else False
 
 
-        #print('###################')
-        #print(self.attention_dropout, self.training)
+        print('###################')
+        print(self.attention_dropout, self.training)
 
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_states,
