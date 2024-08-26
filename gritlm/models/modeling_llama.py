@@ -663,7 +663,7 @@ class LlamaSdpaAttention(LlamaAttention):
 
 
         print('###################')
-        print(self.attention_dropout if self.training else 0.0,)
+        print(self.attention_dropout, self.training)
 
         attn_output = torch.nn.functional.scaled_dot_product_attention(
             query_states,
