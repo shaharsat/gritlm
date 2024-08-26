@@ -948,6 +948,148 @@ class GPTNeoXRetriever(nn.Module):
         self.scheduled_sampling_schedule_fn = None
 
 
+    def _preret_encode(self,
+                       hidden_states,
+                       attention_mask,
+                       deterministic,
+                       retrieval_kwargs,
+                       output_attentions: bool = False,
+                       mode: str = "both"
+                       ):
+        assert "pooling_size" in retrieval_kwargs
+        pooling_size = retrieval_kwargs["pooling_size"]
+        if np.prod(attention_mask.shape) != np.prod(hidden_states.shape[:-1]):
+            assert len(attention_mask.shape) == 2
+            assert len(hidden_states.shape) == 3
+            attention_mask = attention_mask[:, :hidden_states.shape[1]]
+        print(f"{hidden_states.shape=}")
+        print(f"{pooling_size=}", flush=True)
+        batch_size_times_n_windows, window_length, dim = hidden_states.shape
+        assert (
+                           window_length % pooling_size) == 0, f"{pooling_size=} {window_length=}"  # batch_size_times_n_windows, window_length, dim
+
+        batch_size = retrieval_kwargs["batch_size"]
+        ignore_prefix = retrieval_kwargs.get("ignore_prefix", 0)
+        assert ignore_prefix < pooling_size
+
+        n_windows = batch_size_times_n_windows // batch_size
+
+        n_chunks_per_window = window_length // pooling_size
+        database_size = n_windows * n_chunks_per_window
+
+        # add a chunk dimension
+        original_hidden_states = hidden_states.reshape([-1, pooling_size, hidden_states.shape[-1]])
+        attention_mask = attention_mask.reshape([-1, pooling_size])
+
+        if ignore_prefix > 0:
+            attention_mask = attention_mask[..., ignore_prefix:]
+            original_hidden_states = original_hidden_states[..., ignore_prefix:, :]
+            pooling_size = pooling_size - ignore_prefix
+
+        if self.config.disable_new_retrieval_weights:
+            encoded_hidden_states = original_hidden_states
+            preret_attention = tuple()
+            pooled_hidden_states = jnp.mean(encoded_hidden_states, axis=-2, where=attention_mask[..., None])
+            key_chunks = pooled_hidden_states
+            query_chunks = pooled_hidden_states
+        else:
+            # 1. apply bi-dir attention
+            preret_bi_output = self.preret_bidir_attention(
+                self.preret_bi_attention_norm(original_hidden_states),  # hidden_states 0
+                None,  # key_value_states 1
+                None,  # position_ids 2
+                None,  # kv_position_ids 3
+                attention_mask,  # 4
+                None,  # retriever_scores 5
+                output_attentions,  # 6
+                deterministic,  # 7
+            )
+            encoded_hidden_states = preret_bi_output[0] + original_hidden_states
+            preret_attention = preret_bi_output[1:]
+            # 2. pool
+            pooled_hidden_states = jnp.mean(encoded_hidden_states, axis=-2, where=attention_mask[..., None])
+            # 3. project to query chunks and key chunks
+            key_chunks = self.key_projection(self.pre_key_norm(pooled_hidden_states))
+            query_chunks = self.query_projection(self.pre_query_norm(pooled_hidden_states))
+
+            chunk_mask = attention_mask.astype(bool).any(-1).reshape([batch_size, database_size, 1])
+            encoded_hidden_states = original_hidden_states if self.config.use_pcw else encoded_hidden_states
+            encoded_hidden_states = encoded_hidden_states.reshape([batch_size, database_size, pooling_size, dim])
+            attention_mask = attention_mask.reshape(encoded_hidden_states.shape[:-1])
+            if mode in ["key", "both"]:
+                key_chunks = key_chunks / jnp.linalg.norm(key_chunks, axis=-1, keepdims=True)
+                key_chunks = key_chunks.reshape([batch_size, database_size, dim])
+            else:
+                key_chunks = None
+
+            if mode in ["query", "both"]:
+                query_chunks = query_chunks / jnp.linalg.norm(query_chunks, axis=-1, keepdims=True)
+                query_chunks = query_chunks.reshape([batch_size, database_size, dim])
+            else:
+                query_chunks = None
+
+        if self.config.bottleneck_pre_lookup:
+            encoded_hidden_states = self.downproj(encoded_hidden_states)
+
+        return GPTNeoXRetrieverEncodedOutput(
+            encoded_hidden_states=encoded_hidden_states,
+            attention_mask=attention_mask,
+            key_chunks=key_chunks,
+            query_chunks=query_chunks,
+            chunk_mask=chunk_mask,
+            preret_attention=preret_attention,
+        )
+
+    def preret_encode(self,
+                      hidden_states,
+                      attention_mask,
+                      deterministic,
+                      retrieval_kwargs,
+                      output_attentions: bool = False,
+                      ):
+        pooling_size = retrieval_kwargs.get("pooling_size")
+        key_pooling_size = retrieval_kwargs.get("key_pooling_size", pooling_size)
+
+        if key_pooling_size == pooling_size:
+            encoded_output = self._preret_encode(
+                hidden_states,
+                attention_mask,
+                mode="both",
+                deterministic=deterministic,
+                retrieval_kwargs=retrieval_kwargs,
+                output_attentions=output_attentions,
+            )
+            result = GPTNeoXRetrieverEncodedOutput(
+                encoded_hidden_states=encoded_output.encoded_hidden_states,
+                attention_mask=encoded_output.attention_mask,
+                key_chunks=encoded_output.key_chunks,
+                query_chunks=encoded_output.query_chunks,
+                chunk_mask=encoded_output.chunk_mask,
+                preret_attention=encoded_output.preret_attention,
+            )
+            return dict(key=result, query=result)
+        else:
+            key_encoded_output = self._preret_encode(
+                hidden_states,
+                attention_mask,
+                mode="key",
+                deterministic=deterministic,
+                retrieval_kwargs={**retrieval_kwargs, "pooling_size": key_pooling_size},
+                output_attentions=output_attentions,
+            )
+
+            query_encoded_output = self._preret_encode(
+                hidden_states,
+                attention_mask,
+                mode="query",
+                deterministic=deterministic,
+                retrieval_kwargs=retrieval_kwargs,
+                output_attentions=output_attentions,
+            )
+
+            return dict(key=key_encoded_output, query=query_encoded_output)
+
+    """
     def preret_encode(self,
                       hidden_states,
                       attention_mask,
@@ -1004,6 +1146,7 @@ class GPTNeoXRetriever(nn.Module):
             chunk_mask=chunk_mask,
             preret_attention=preret_bi_output[1:],
         )
+    """
 
 
 
