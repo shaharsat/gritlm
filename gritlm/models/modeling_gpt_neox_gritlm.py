@@ -46,6 +46,8 @@ from transformers.utils import ModelOutput
 
 from .attention import my_dot_product_attention_weights
 
+DROPOUT = 0.1
+
 if is_flash_attn_2_available():
     from transformers.modeling_flash_attention_utils import _flash_attention_forward
 
@@ -115,7 +117,7 @@ class GPTNeoXAttention(nn.Module):
         self.norm_factor = self.head_size**-0.5
         self.query_key_value = nn.Linear(config.hidden_size, 3 * config.hidden_size, bias=config.attention_bias)
         self.dense = nn.Linear(config.hidden_size, config.hidden_size, bias=config.attention_bias)
-        self.attention_dropout = nn.Dropout(config.attention_dropout)
+        self.attention_dropout = nn.Dropout(DROPOUT) #nn.Dropout(config.attention_dropout)
 
     def _init_bias(self, max_positions, device=None):
         self.register_buffer(
@@ -381,7 +383,7 @@ class GPTNeoXFlashAttention2(GPTNeoXAttention):
             key = key.to(target_dtype)
             value = value.to(target_dtype)
 
-        attention_dropout = self.config.attention_dropout if self.training else 0.0
+        attention_dropout = DROPOUT if self.training else 0.0 #self.config.attention_dropout if self.training else 0.0
 
         # Compute attention
         attn_weights = _flash_attention_forward(
@@ -482,7 +484,7 @@ class GPTNeoXSdpaAttention(GPTNeoXAttention):
             key=key,
             value=value,
             attn_mask=attention_mask,
-            dropout_p=self.attention_dropout.p if self.training else 0.0,
+            dropout_p=DROPOUT if self.training else 0.0, #self.attention_dropout.p if self.training else 0.0,
             is_causal=is_causal,
         )
 
