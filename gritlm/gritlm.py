@@ -62,7 +62,8 @@ class GritLM(torch.nn.Module):
         self.normalized = normalized
         self.pooling_method = pooling_method
 
-        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        # TODO: Remove after debuggin
+        self.device = torch.device('cpu') #torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.num_gpus = 1
         self.embed_eos = embed_eos
         self.attn = attn
