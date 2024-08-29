@@ -16,7 +16,6 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
-import einops
 import torch
 import torch.utils.checkpoint
 from packaging import version
@@ -960,15 +959,14 @@ class GPTNeoXRetriever(nn.Module):
                        ):
         assert "pooling_size" in retrieval_kwargs
         pooling_size = retrieval_kwargs["pooling_size"]
-        if np.prod(attention_mask.shape) != np.prod(hidden_states.shape[:-1]):
+        if torch.prod(attention_mask.shape) != torch.prod(hidden_states.shape[:-1]):
             assert len(attention_mask.shape) == 2
             assert len(hidden_states.shape) == 3
             attention_mask = attention_mask[:, :hidden_states.shape[1]]
         print(f"{hidden_states.shape=}")
         print(f"{pooling_size=}", flush=True)
         batch_size_times_n_windows, window_length, dim = hidden_states.shape
-        assert (
-                           window_length % pooling_size) == 0, f"{pooling_size=} {window_length=}"  # batch_size_times_n_windows, window_length, dim
+        assert (window_length % pooling_size) == 0, f"{pooling_size=} {window_length=}"  # batch_size_times_n_windows, window_length, dim
 
         batch_size = retrieval_kwargs["batch_size"]
         ignore_prefix = retrieval_kwargs.get("ignore_prefix", 0)
@@ -988,10 +986,14 @@ class GPTNeoXRetriever(nn.Module):
             original_hidden_states = original_hidden_states[..., ignore_prefix:, :]
             pooling_size = pooling_size - ignore_prefix
 
-        if self.config.disable_new_retrieval_weights:
+        #if self.config.disable_new_retrieval_weights:
+        if False: # don't disable new retrieval weights
             encoded_hidden_states = original_hidden_states
             preret_attention = tuple()
-            pooled_hidden_states = jnp.mean(encoded_hidden_states, axis=-2, where=attention_mask[..., None])
+            masked_encoded_hidden_states = attention_mask.unsqueeze(-1).expand_as(
+                encoded_hidden_states) * encoded_hidden_states
+            pooled_hidden_states = masked_encoded_hidden_states.mean(dim=-2)
+
             key_chunks = pooled_hidden_states
             query_chunks = pooled_hidden_states
         else:
@@ -1009,7 +1011,9 @@ class GPTNeoXRetriever(nn.Module):
             encoded_hidden_states = preret_bi_output[0] + original_hidden_states
             preret_attention = preret_bi_output[1:]
             # 2. pool
-            pooled_hidden_states = jnp.mean(encoded_hidden_states, axis=-2, where=attention_mask[..., None])
+            masked_encoded_hidden_states = attention_mask.unsqueeze(-1).expand_as(
+                encoded_hidden_states) * encoded_hidden_states
+            pooled_hidden_states = masked_encoded_hidden_states.mean(dim=-2)
             # 3. project to query chunks and key chunks
             key_chunks = self.key_projection(self.pre_key_norm(pooled_hidden_states))
             query_chunks = self.query_projection(self.pre_query_norm(pooled_hidden_states))
@@ -1019,18 +1023,18 @@ class GPTNeoXRetriever(nn.Module):
             encoded_hidden_states = encoded_hidden_states.reshape([batch_size, database_size, pooling_size, dim])
             attention_mask = attention_mask.reshape(encoded_hidden_states.shape[:-1])
             if mode in ["key", "both"]:
-                key_chunks = key_chunks / jnp.linalg.norm(key_chunks, axis=-1, keepdims=True)
+                key_chunks = key_chunks / torch.linalg.norm(key_chunks, axis=-1, keepdims=True)
                 key_chunks = key_chunks.reshape([batch_size, database_size, dim])
             else:
                 key_chunks = None
 
             if mode in ["query", "both"]:
-                query_chunks = query_chunks / jnp.linalg.norm(query_chunks, axis=-1, keepdims=True)
+                query_chunks = query_chunks / torch.linalg.norm(query_chunks, axis=-1, keepdims=True)
                 query_chunks = query_chunks.reshape([batch_size, database_size, dim])
             else:
                 query_chunks = None
 
-        if self.config.bottleneck_pre_lookup:
+        if False: #self.config.bottleneck_pre_lookup:
             encoded_hidden_states = self.downproj(encoded_hidden_states)
 
         return GPTNeoXRetrieverEncodedOutput(
@@ -1090,66 +1094,6 @@ class GPTNeoXRetriever(nn.Module):
             )
 
             return dict(key=key_encoded_output, query=query_encoded_output)
-
-    """
-    def preret_encode(self,
-                      hidden_states,
-                      attention_mask,
-                      deterministic,
-                      pooling_size: int,
-                      output_attentions: bool = False,
-                      past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None):
-        original_hidden_states_shape = hidden_states.shape
-        original_attention_mask_shape = attention_mask.shape
-
-        if hidden_states.isnan().any():
-            print(f'preret_encode: hidden_states={hidden_states}')
-
-        original_hidden_states = einops.rearrange(hidden_states, 'b (l c) ... -> (b l) c ... ', c=pooling_size)
-        attention_mask = einops.rearrange(attention_mask, 'b (l c) ... -> (b l) c ... ', c=pooling_size)
-
-        # add a chunk dimension
-        # 1. apply bi-dir attention
-        preret_bi_output = self.preret_bidir_attention(
-            self.preret_bi_attention_norm(original_hidden_states),
-            attention_mask=attention_mask,
-            deterministic=deterministic,
-            output_attentions=output_attentions)
-
-        encoded_hidden_states = preret_bi_output[0] + original_hidden_states
-
-        # 2. pool
-        masked_encoded_hidden_states = attention_mask.unsqueeze(-1).expand_as(encoded_hidden_states) * encoded_hidden_states
-        pooled_hidden_states = masked_encoded_hidden_states.mean(dim=-2)
-
-        # 3. project to query chunks and key chunks
-        key_chunks = self.key_projection(self.pre_key_norm(pooled_hidden_states))
-        query_chunks = self.query_projection(self.pre_query_norm(pooled_hidden_states))
-        chunk_mask = attention_mask.type(torch.bool).any(-1)[..., None]
-        if chunk_mask.shape[0] != pooled_hidden_states.shape[0]:
-            chunk_mask = chunk_mask[:pooled_hidden_states.shape[0], ...]
-
-
-        # nei_pos = jnp.clip(jnp.cumsum(attention_mask, axis=-1) - 1, a_min=0, a_max=2*self.config.chunk_size-1)
-        original_hidden_states = original_hidden_states.reshape(original_hidden_states_shape)
-        attention_mask = attention_mask.reshape(original_attention_mask_shape)
-
-        key_chunks = key_chunks / torch.linalg.norm(key_chunks, dim=-1).unsqueeze(-1)
-        query_chunks = query_chunks / torch.linalg.norm(query_chunks, dim=-1).unsqueeze(-1)
-
-
-        return GPTNeoXRetrieverEncodedOutput(
-            key_chunks=key_chunks,
-            past_key_values=past_key_values,
-            original_hidden_states=original_hidden_states,
-            encoded_hidden_states=encoded_hidden_states,
-            attention_mask=attention_mask,
-            query_chunks=query_chunks,
-            chunk_mask=chunk_mask,
-            preret_attention=preret_bi_output[1:],
-        )
-    """
-
 
 
 
@@ -1403,13 +1347,18 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         #if output_hidden_states:
         #    all_hidden_states = all_hidden_states + (hidden_states,)
 
+        retrieval_kwargs = {
+            'pooling_size':  input_ids.shape[-1],
+            'key_pooling_size':  input_ids.shape[-1],
+            'batch_size': 1,
+        }
+
         encoded_output = self.retriever.preret_encode(
             hidden_states,
             original_attention_mask,
             False, # deterministic
-            input_ids.shape[-1], # chunk size
+            retrieval_kwargs,
             output_attentions,
-            past_key_values
         )
 
         if not return_dict:
