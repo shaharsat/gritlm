@@ -1071,6 +1071,7 @@ class LlamaModel(LlamaPreTrainedModel):
         past_key_values: Cache,
         output_attentions: bool,
     ):
+        print('$$$$$$ 0')
         # TODO: As of torch==2.2.0, the `attention_mask` passed to the model in `generate` is 2D and of dynamic length even when the static
         # KV cache is used. This is an issue for torch.compile which then recaptures cudagraphs at each decode steps due to the dynamic shapes.
         # (`recording cudagraph tree for symint key 13`, etc.), which is VERY slow. A workaround is `@torch.compiler.disable`, but this prevents using
@@ -1081,11 +1082,15 @@ class LlamaModel(LlamaPreTrainedModel):
                 return attention_mask
             return None
 
+        print('$$$$$$ 1')
+
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
         past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
         using_static_cache = isinstance(past_key_values, StaticCache)
+
+        print('$$$$$$ 2')
 
         # When output attentions is True, sdpa implementation's forward method calls the eager implementation's forward
         if self.config._attn_implementation == "sdpa" and not using_static_cache and not output_attentions:
@@ -1096,6 +1101,8 @@ class LlamaModel(LlamaPreTrainedModel):
                 is_training=self.training,
             ):
                 return None
+
+        print('$$$$$$ 3')
 
         dtype, device = input_tensor.dtype, input_tensor.device
         min_dtype = torch.finfo(dtype).min
@@ -1109,7 +1116,7 @@ class LlamaModel(LlamaPreTrainedModel):
                 else past_seen_tokens + sequence_length + 1
             )
 
-        print('###### 1.1')
+        print('$$$$$$ 4')
 
         # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
         causal_mask = _prepare_4d_causal_attention_mask_with_cache_position(
@@ -1122,6 +1129,8 @@ class LlamaModel(LlamaPreTrainedModel):
             cache_position=cache_position,
             batch_size=input_tensor.shape[0],
         )
+
+        print('$$$$$$ 5')
 
         if (
             self.config._attn_implementation == "sdpa"
