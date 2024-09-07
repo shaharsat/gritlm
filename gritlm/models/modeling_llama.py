@@ -17,12 +17,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import sys
-sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm")
-sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/gritlm")
-sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/gritlm/models")
-
-
 import math
 from typing import List, Optional, Tuple, Union
 
@@ -35,7 +29,7 @@ from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from transformers.activations import ACT2FN
 from transformers.cache_utils import Cache, DynamicCache, StaticCache
 from transformers.modeling_attn_mask_utils import AttentionMaskConverter
-from modeling_flash_attention_utils import _flash_attention_forward
+from transformers.modeling_flash_attention_utils import _flash_attention_forward
 from transformers.modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
