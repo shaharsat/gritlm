@@ -1202,9 +1202,13 @@ class LlamaModel(LlamaPreTrainedModel):
             ):
                 ignore_causal_mask = True
         elif sliding_window is None or key_value_length < sliding_window:
+            print(f'%%%%%% attention_mask={attention_mask}')
+
+
             if len(attention_mask.shape) == 4:
                 return False
-            elif (is_training or not is_tracing) and torch.all(attention_mask == 1):
+            elif ((is_training or not is_tracing)
+                  and torch.all(attention_mask == 1)):
                 if query_length == 1 or key_value_length == query_length:
                     # For query_length == 1, causal attention and bi-directional attention are the same.
                     ignore_causal_mask = True
