@@ -988,7 +988,9 @@ class LlamaModel(LlamaPreTrainedModel):
         all_self_attns = () if output_attentions else None
         next_decoder_cache = None
 
+        i = 0
         for decoder_layer in self.layers:
+            print(f'Running layer {i}')
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
 
@@ -1025,6 +1027,8 @@ class LlamaModel(LlamaPreTrainedModel):
 
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
+
+            i += 1
 
         hidden_states = self.norm(hidden_states)
 
