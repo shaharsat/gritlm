@@ -1209,7 +1209,7 @@ class LlamaModel(LlamaPreTrainedModel):
             attention_flags = attention_mask == 1
             att_all = True
             for flag in attention_flags.view(-1):
-                print(type(flag))
+                print(flag)
                 if not flag:
                     att_all = False
 
