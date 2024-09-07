@@ -1202,7 +1202,7 @@ class LlamaModel(LlamaPreTrainedModel):
             ):
                 ignore_causal_mask = True
         elif sliding_window is None or key_value_length < sliding_window:
-            print(f'%%%%%% attention_mask={attention_mask}')
+            print(f'%%%%%% attention_mask={attention_mask.shape}')
 
 
             if len(attention_mask.shape) == 4:
