@@ -1209,6 +1209,8 @@ class LlamaModel(LlamaPreTrainedModel):
             attention_flags = attention_mask == 1
             should_check = is_training or not is_tracing
 
+            print(f'should_check={should_check}')
+
 
             if len(attention_mask.shape) == 4:
                 return False
