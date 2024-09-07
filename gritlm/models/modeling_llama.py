@@ -1206,11 +1206,13 @@ class LlamaModel(LlamaPreTrainedModel):
             print(f'is_training={is_training}')
             print(f'is_tracing={is_tracing}')
 
+            attention_flags = attention_mask == 1
+
 
             if len(attention_mask.shape) == 4:
                 return False
             elif ((is_training or not is_tracing)
-                  and torch.all(attention_mask == 1)):
+                  and torch.all(attention_flags)):
                 if query_length == 1 or key_value_length == query_length:
                     # For query_length == 1, causal attention and bi-directional attention are the same.
                     ignore_causal_mask = True
