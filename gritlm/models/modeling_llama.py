@@ -19,7 +19,8 @@
 # limitations under the License.
 import sys
 sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm")
-sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/models")
+sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/gritlm")
+sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/gritlm/models")
 
 
 import math
