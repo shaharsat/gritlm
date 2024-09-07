@@ -17,6 +17,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import sys
+sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm")
+sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/models")
+
+
 import math
 from typing import List, Optional, Tuple, Union
 
