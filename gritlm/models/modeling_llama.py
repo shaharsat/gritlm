@@ -981,13 +981,19 @@ class LlamaModel(LlamaPreTrainedModel):
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
+        print('######## 3')
+
         causal_mask = self._update_causal_mask(
             attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
         )
         hidden_states = inputs_embeds
 
+        print('######## 4')
+
         # create position embeddings to be shared across the decoder layers
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
+
+        print('######## 5')
 
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
