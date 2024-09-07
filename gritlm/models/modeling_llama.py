@@ -1205,12 +1205,10 @@ class LlamaModel(LlamaPreTrainedModel):
             print(f'%%%%%% attention_mask={attention_mask.shape}')
             print(f'is_training={is_training}')
             print(f'is_tracing={is_tracing}')
-
-            attention_flags = attention_mask == 1
             att_all = True
-            for flag in attention_flags.view(-1):
+            for flag in attention_mask.view(-1):
                 print(flag)
-                if not flag:
+                if flag != 1:
                     att_all = False
 
             should_check = is_training or not is_tracing
