@@ -935,6 +935,7 @@ class LlamaModel(LlamaPreTrainedModel):
         cache_position: Optional[torch.LongTensor] = None,
         is_causal: bool = True,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
+        print('####### 0')
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -953,8 +954,13 @@ class LlamaModel(LlamaPreTrainedModel):
             )
             use_cache = False
 
+        print('######## 1')
+
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
+
+
+        print('######## 2')
 
         return_legacy_cache = False
         if (
