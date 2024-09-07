@@ -983,7 +983,11 @@ class LlamaModel(LlamaPreTrainedModel):
 
         print('######## 3')
 
-        print(attention_mask.shape, inputs_embeds.shape, cache_position, past_key_values is not None, output_attentions)
+        print(attention_mask.shape)
+        print(inputs_embeds.shape)
+        print(cache_position)
+        print(past_key_values is not None)
+        print(output_attentions)
 
         causal_mask = self._update_causal_mask(
             attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
