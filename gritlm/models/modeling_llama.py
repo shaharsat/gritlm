@@ -1214,15 +1214,16 @@ class LlamaModel(LlamaPreTrainedModel):
 
             if len(attention_mask.shape) == 4:
                 return False
-            elif should_check and torch.all(attention_flags[0]):
-                if query_length == 1 or key_value_length == query_length:
-                    # For query_length == 1, causal attention and bi-directional attention are the same.
-                    ignore_causal_mask = True
+            elif should_check:
+                if torch.all(attention_flags):
+                    if query_length == 1 or key_value_length == query_length:
+                        # For query_length == 1, causal attention and bi-directional attention are the same.
+                        ignore_causal_mask = True
 
-                # Unfortunately, for query_length > 1 and key_value_length != query_length, we cannot generally ignore the attention mask, as SDPA causal mask generation
-                # may be wrong. We will set `is_causal=False` in SDPA and rely on Transformers attention_mask instead, hence not setting it to None here.
-                # Reference: https://github.com/pytorch/pytorch/issues/108108
-                # TODO: maybe revisit this with https://github.com/pytorch/pytorch/pull/114823 in PyTorch 2.3.
+                    # Unfortunately, for query_length > 1 and key_value_length != query_length, we cannot generally ignore the attention mask, as SDPA causal mask generation
+                    # may be wrong. We will set `is_causal=False` in SDPA and rely on Transformers attention_mask instead, hence not setting it to None here.
+                    # Reference: https://github.com/pytorch/pytorch/issues/108108
+                    # TODO: maybe revisit this with https://github.com/pytorch/pytorch/pull/114823 in PyTorch 2.3.
 
         return ignore_causal_mask
 
