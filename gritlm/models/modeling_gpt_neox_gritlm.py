@@ -47,7 +47,7 @@ from transformers.utils import ModelOutput
 from .attention import my_dot_product_attention_weights
 
 if is_flash_attn_2_available():
-    from transformers.modeling_flash_attention_utils import _flash_attention_forward
+    from modeling_flash_attention_utils import _flash_attention_forward
 
 logger = logging.get_logger(__name__)
 
