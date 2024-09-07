@@ -142,6 +142,16 @@ class GritLM(torch.nn.Module):
                 add_special_tokens=add_special_tokens,
             ).to(self.device)
 
+            # Check model parameters
+            for name, param in self.model.named_parameters():
+                if param.device != torch.device('cuda:0'):
+                    print(f"Parameter '{name}' is on {param.device}")
+
+            # Check model buffers (e.g., running mean/variance in BatchNorm)
+            for name, buffer in self.model.named_buffers():
+                if buffer.device != torch.device('cuda:0'):
+                    print(f"Buffer '{name}' is on {buffer.device}")
+
             if (self.attn is not None) and (self.attn[:2] == 'bb'):
                 inputs["is_causal"] = False
             if get_cache:
