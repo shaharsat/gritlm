@@ -73,7 +73,12 @@ class GritLM(torch.nn.Module):
 
         if is_inference:
             # Padding side right is necessary for `embed_instruction` to index correctly
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, padding_side='right', pad_token='<|endoftext|>', mask_token='<|endoftext|>')
+            #self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, padding_side='right', pad_token='<|endoftext|>', mask_token='<|endoftext|>')
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_name_or_path,
+                padding_side="right",  # Has to be right so masking of instruction tokens works correctly
+            )
+
             if not(self.tokenizer.pad_token) and self.tokenizer.eos_token:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
                 print('Set pad token to eos token: ' + self.tokenizer.pad_token)        
@@ -154,6 +159,7 @@ class GritLM(torch.nn.Module):
                 assert len(all_kv_caches) == 0, "Can only get cache for one batch at a time"
                 all_kv_caches = outputs[1]
 
+            # TODO: Sure we don't need the projection?
             #if self.projection:
             #    last_hidden_state = self.projection(last_hidden_state)
             if (instruction) and (embed_instruction is False) and ("mean" in self.pooling_method):
