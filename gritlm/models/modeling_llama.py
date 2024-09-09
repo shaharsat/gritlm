@@ -1205,16 +1205,12 @@ class LlamaModel(LlamaPreTrainedModel):
             print(f'%%%%%% attention_mask={attention_mask.shape}')
             print(f'is_training={is_training}')
             print(f'is_tracing={is_tracing}')
-            att_all = True
-            for flag in attention_mask.view(-1):
-                print(flag)
-                if flag != 1:
-                    att_all = False
+            att_all = all(list(attention_mask.view(-1)))
 
             should_check = is_training or not is_tracing
 
             print(f'should_check={should_check}')
-            print(f'torch.where(attention_flags == False)={torch.all(attention_flags)}')
+            print(f'torch.where(attention_flags == False)={torch.all(attention_mask)}')
 
             if len(attention_mask.shape) == 4:
                 return False
