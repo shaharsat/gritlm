@@ -969,9 +969,6 @@ class LlamaModel(LlamaPreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            print(f'past_seen_tokens={past_seen_tokens}')
-            print(f'past_seen_tokens + inputs_embeds.shape[1]={past_seen_tokens + inputs_embeds.shape[1]}')
-            print(f'device={inputs_embeds.device}')
             cache_position = torch.arange(
                 past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], device=inputs_embeds.device
             )
