@@ -1205,7 +1205,7 @@ class LlamaModel(LlamaPreTrainedModel):
             print(f'%%%%%% attention_mask={attention_mask.shape}')
             print(f'is_training={is_training}')
             print(f'is_tracing={is_tracing}')
-            print(f'view={attention_mask.view(-1)}')
+            print(f'view={attention_mask.detach().numpy()}')
             print(f'view list={list(attention_mask.view(-1))}')
             att_all = all(list(attention_mask.view(-1)))
 
