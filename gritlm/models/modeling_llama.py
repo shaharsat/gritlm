@@ -1203,11 +1203,7 @@ class LlamaModel(LlamaPreTrainedModel):
                 ignore_causal_mask = True
         elif sliding_window is None or key_value_length < sliding_window:
             print(f'%%%%%% attention_mask={attention_mask.shape}')
-            print(f'is_training={is_training}')
-            print(f'is_tracing={is_tracing}')
-            print(f'view={attention_mask.cpu().detach().numpy()}')
-            print(f'view list={list(attention_mask.view(-1))}')
-            att_all = all(list(attention_mask.view(-1)))
+            print(f'view={attention_mask}')
 
             should_check = is_training or not is_tracing
 
