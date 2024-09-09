@@ -1213,7 +1213,7 @@ class LlamaModel(LlamaPreTrainedModel):
             if len(attention_mask.shape) == 4:
                 return False
             elif should_check:
-                if att_all:
+                if torch.all(attention_mask):
                     if query_length == 1 or key_value_length == query_length:
                         # For query_length == 1, causal attention and bi-directional attention are the same.
                         ignore_causal_mask = True
