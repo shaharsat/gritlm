@@ -953,8 +953,6 @@ class LlamaModel(LlamaPreTrainedModel):
             )
             use_cache = False
 
-        print(input_ids)
-
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
