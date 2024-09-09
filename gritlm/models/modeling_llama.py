@@ -977,6 +977,7 @@ class LlamaModel(LlamaPreTrainedModel):
 
         print(f'cache_position is None={cache_position is None}')
         print(f'past_key_values={past_key_values}')
+        print(f'attention_mask 2: {attention_mask}')
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
