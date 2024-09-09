@@ -957,6 +957,7 @@ class LlamaModel(LlamaPreTrainedModel):
         print('######## 1')
 
         print(f'attention_mask 1: {attention_mask}')
+        print(input_ids)
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
