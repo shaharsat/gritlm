@@ -1080,6 +1080,7 @@ class LlamaModel(LlamaPreTrainedModel):
         output_attentions: bool,
     ):
         print('$$$$$$ 0')
+        print(f'attention_mask: {attention_mask}')
         # TODO: As of torch==2.2.0, the `attention_mask` passed to the model in `generate` is 2D and of dynamic length even when the static
         # KV cache is used. This is an issue for torch.compile which then recaptures cudagraphs at each decode steps due to the dynamic shapes.
         # (`recording cudagraph tree for symint key 13`, etc.), which is VERY slow. A workaround is `@torch.compiler.disable`, but this prevents using
