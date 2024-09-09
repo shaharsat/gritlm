@@ -935,7 +935,6 @@ class LlamaModel(LlamaPreTrainedModel):
         cache_position: Optional[torch.LongTensor] = None,
         is_causal: bool = True,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
-        print('####### 0')
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -954,17 +953,10 @@ class LlamaModel(LlamaPreTrainedModel):
             )
             use_cache = False
 
-        print('######## 1')
-
-        print(f'attention_mask 1: {attention_mask}')
         print(input_ids)
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
-
-        print(f'attention_mask 2A: {attention_mask}')
-
-        print('######## 2')
 
         return_legacy_cache = False
         if (
@@ -977,10 +969,6 @@ class LlamaModel(LlamaPreTrainedModel):
                 "Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)"
             )
 
-        print(f'cache_position is None={cache_position is None}')
-        print(f'past_key_values={past_key_values}')
-        print(f'attention_mask 2: {attention_mask}')
-
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             print(f'past_seen_tokens={past_seen_tokens}')
@@ -992,14 +980,9 @@ class LlamaModel(LlamaPreTrainedModel):
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
-        print('######## 3')
-
-        print(f'attention_mask 3: {attention_mask}')
         causal_mask = self._update_causal_mask(
             attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
         )
-        print('######## 4')
-
         hidden_states = inputs_embeds
 
 
@@ -1007,16 +990,13 @@ class LlamaModel(LlamaPreTrainedModel):
         # create position embeddings to be shared across the decoder layers
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
 
-        print('######## 5')
 
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
         next_decoder_cache = None
 
-        i = 0
         for decoder_layer in self.layers:
-            print(f'Running layer {i}')
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
 
@@ -1054,8 +1034,6 @@ class LlamaModel(LlamaPreTrainedModel):
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
 
-            i += 1
-
         hidden_states = self.norm(hidden_states)
 
         # add hidden states from the last decoder layer
@@ -1083,8 +1061,6 @@ class LlamaModel(LlamaPreTrainedModel):
         past_key_values: Cache,
         output_attentions: bool,
     ):
-        print('$$$$$$ 0')
-        print(f'attention_mask: {attention_mask}')
         # TODO: As of torch==2.2.0, the `attention_mask` passed to the model in `generate` is 2D and of dynamic length even when the static
         # KV cache is used. This is an issue for torch.compile which then recaptures cudagraphs at each decode steps due to the dynamic shapes.
         # (`recording cudagraph tree for symint key 13`, etc.), which is VERY slow. A workaround is `@torch.compiler.disable`, but this prevents using
@@ -1095,15 +1071,11 @@ class LlamaModel(LlamaPreTrainedModel):
                 return attention_mask
             return None
 
-        print('$$$$$$ 1')
-
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
         past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
         using_static_cache = isinstance(past_key_values, StaticCache)
-
-        print('$$$$$$ 2')
 
         # When output attentions is True, sdpa implementation's forward method calls the eager implementation's forward
         if self.config._attn_implementation == "sdpa" and not using_static_cache and not output_attentions:
@@ -1116,8 +1088,6 @@ class LlamaModel(LlamaPreTrainedModel):
             ):
                 return None
             """
-            print(f'attention_mask: {attention_mask}')
-
             if self._ignore_causal_mask_sdpa(
                     attention_mask,
                     inputs_embeds=input_tensor,
@@ -1125,8 +1095,6 @@ class LlamaModel(LlamaPreTrainedModel):
                     is_training=self.training,
             ):
                 return None
-
-        print('$$$$$$ 3')
 
         dtype, device = input_tensor.dtype, input_tensor.device
         min_dtype = torch.finfo(dtype).min
@@ -1140,8 +1108,6 @@ class LlamaModel(LlamaPreTrainedModel):
                 else past_seen_tokens + sequence_length + 1
             )
 
-        print('$$$$$$ 4')
-
         # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
         causal_mask = _prepare_4d_causal_attention_mask_with_cache_position(
             attention_mask,
@@ -1153,8 +1119,6 @@ class LlamaModel(LlamaPreTrainedModel):
             cache_position=cache_position,
             batch_size=input_tensor.shape[0],
         )
-
-        print('$$$$$$ 5')
 
         if (
             self.config._attn_implementation == "sdpa"
@@ -1187,8 +1151,6 @@ class LlamaModel(LlamaPreTrainedModel):
         allowing to dispatch to the flash attention kernel (that can otherwise not be used if a custom `attn_mask` is passed).
         """
 
-        print(f'attention_mask: {attention_mask}')
-
         _, query_length = inputs_embeds.shape[0], inputs_embeds.shape[1]
         key_value_length = query_length + past_key_values_length
 
@@ -1213,13 +1175,7 @@ class LlamaModel(LlamaPreTrainedModel):
             ):
                 ignore_causal_mask = True
         elif sliding_window is None or key_value_length < sliding_window:
-            print(f'%%%%%% attention_mask={attention_mask.shape}')
-            print(f'view={attention_mask}')
-
             should_check = is_training or not is_tracing
-
-            print(f'should_check={should_check}')
-            print(f'torch.where(attention_flags == False)={torch.all(attention_mask)}')
 
             if len(attention_mask.shape) == 4:
                 return False

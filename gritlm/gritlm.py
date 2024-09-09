@@ -73,6 +73,7 @@ class GritLM(torch.nn.Module):
 
         if is_inference:
             # Padding side right is necessary for `embed_instruction` to index correctly
+            # TODO: Same tokenizer as training
             #self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, padding_side='right', pad_token='<|endoftext|>', mask_token='<|endoftext|>')
             self.tokenizer = AutoTokenizer.from_pretrained(
                 model_name_or_path,
