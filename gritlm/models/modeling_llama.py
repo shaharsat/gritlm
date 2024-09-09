@@ -1111,6 +1111,8 @@ class LlamaModel(LlamaPreTrainedModel):
             ):
                 return None
             """
+            print(f'attention_mask: {attention_mask}')
+
             if self._ignore_causal_mask_sdpa(
                     attention_mask,
                     inputs_embeds=input_tensor,
@@ -1179,6 +1181,8 @@ class LlamaModel(LlamaPreTrainedModel):
         `key_value_length == query_length`, we rather rely on SDPA `is_causal` argument to use causal/non-causal masks,
         allowing to dispatch to the flash attention kernel (that can otherwise not be used if a custom `attn_mask` is passed).
         """
+
+        print(f'attention_mask: {attention_mask}')
 
         _, query_length = inputs_embeds.shape[0], inputs_embeds.shape[1]
         key_value_length = query_length + past_key_values_length
