@@ -956,7 +956,7 @@ class LlamaModel(LlamaPreTrainedModel):
 
         print('######## 1')
 
-        print(f'attention_mask: {attention_mask}')
+        print(f'attention_mask 1: {attention_mask}')
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
@@ -991,7 +991,7 @@ class LlamaModel(LlamaPreTrainedModel):
 
         print('######## 3')
 
-        print(f'attention_mask: {attention_mask}')
+        print(f'attention_mask 3: {attention_mask}')
         causal_mask = self._update_causal_mask(
             attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
         )
