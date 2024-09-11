@@ -7,7 +7,20 @@ import torch
 
 import sys
 sys.path.append("/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm")
+sys.path.append("/Users/shahar.satamkar/Desktop/research/gritlm/gritlm")
 from gritlm import GritLM
+
+import logging
+import sys
+
+root = logging.getLogger()
+root.setLevel(logging.DEBUG)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+root.addHandler(handler)
 
 SET_TO_TASK_TO_DS_TO_PROMPT = {
     # https://github.com/microsoft/unilm/blob/16da2f193b9c1dab0a692c6e4380bd43e70a40cd/e5/utils.py#L93
