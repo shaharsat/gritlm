@@ -160,9 +160,8 @@ class GritLM(torch.nn.Module):
                 assert len(all_kv_caches) == 0, "Can only get cache for one batch at a time"
                 all_kv_caches = outputs[1]
 
-            # TODO: Sure we don't need the projection?
-            #if self.projection:
-            #    last_hidden_state = self.projection(last_hidden_state)
+            if self.projection:
+                last_hidden_state = self.projection(last_hidden_state)
             if (instruction) and (embed_instruction is False) and ("mean" in self.pooling_method):
                 # Remove instruction tokens from the embeddings by masking them
                 instruction_tokens = self.tokenizer(
