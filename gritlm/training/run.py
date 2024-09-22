@@ -249,9 +249,6 @@ def main():
             prefixlm=data_args.prefixlm
         ),
         "tokenizer": tokenizer,
-        "evaluation_strategy": "steps",
-        "eval_steps": data_args.eval_steps,
-        "eval_strategy": data_args.eval_strategy
     }
 
     if gc_chunk_size is not None:

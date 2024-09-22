@@ -91,12 +91,6 @@ class DataArguments:
         metadata={"help": "If unified with different emb & gen dataset lens, ensure samples are unique in each epoch"}
     )
     prefixlm: bool = field(default=False, metadata={"help": "PrefixLM for generative"})
-    eval_steps: int = field(
-        default=None, metadata={"help": "steps for evaluation"}
-    )
-    eval_strategy: str = field(
-        default="epoch", metadata={"help": "The evaluation strategy to adopt during training. Possible values are: no/steps/epoch"}
-    )
 
 
 
