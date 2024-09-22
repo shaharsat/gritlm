@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 import os
-from typing import Optional
+from typing import Optional, Union
 
-from transformers import TrainingArguments
+from transformers import TrainingArguments, IntervalStrategy
 
 
 @dataclass
@@ -100,6 +100,10 @@ class DataArguments:
 
 @dataclass
 class CustomTrainingArguments(TrainingArguments):
+    eval_strategy: Union[IntervalStrategy, str] = field(
+        default="no",
+        metadata={"help": "The evaluation strategy to use."},
+    )
     negatives_cross_device: bool = field(
         default=False, 
         metadata={
