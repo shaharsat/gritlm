@@ -43,6 +43,12 @@ class DataArguments:
                     " in-batch negatives are very difficult."
         }
     )
+    eval_data: str = field(
+        default=None,
+        metadata={
+            "help": "Path to folder or file with evaluation/validation data. For toy data in instruction format"
+        }
+    )
     train_group_size: int = field(
         default=2,
         metadata={
@@ -85,6 +91,13 @@ class DataArguments:
         metadata={"help": "If unified with different emb & gen dataset lens, ensure samples are unique in each epoch"}
     )
     prefixlm: bool = field(default=False, metadata={"help": "PrefixLM for generative"})
+    eval_steps: int = field(
+        default=None, metadata={"help": "steps for evaluation"}
+    )
+    eval_strategy: str = field(
+        default="epoch", metadata={"help": "The evaluation strategy to adopt during training. Possible values are: no/steps/epoch"}
+    )
+
 
 
     def __post_init__(self):
@@ -152,3 +165,4 @@ class CustomTrainingArguments(TrainingArguments):
     split_emb_full: bool = field(default=False, metadata={"help": "Split embedding forward / backward pass"})
     emb_q_only: bool = field(default=False, metadata={"help": "Only backprop on q's"})
     emb_p_only: bool = field(default=False, metadata={"help": "Only backprop on p's (pos & neg)"})
+

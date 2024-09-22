@@ -122,87 +122,21 @@ def main():
 
     data_files = [os.path.join(data_args.train_data, x) for x in os.listdir(data_args.train_data)] if \
         os.path.isdir(data_args.train_data) else [data_args.train_data]
-    train_ds, ds_embedding_lens = [], []
-    
+
+    eval_files = [os.path.join(data_args.eval_data, x) for x in os.listdir(data_args.eval_data)] if \
+        os.path.isdir(data_args.eval_data) else [data_args.eval_data]
+
     num_samples = None
     if data_args.num_samples:
         with open(data_args.num_samples, "r") as f:
             num_samples = json.load(f)
-    
-    ds_name_to_samples = {}
 
     if data_args.generative_max_len is None:
         data_args.generative_max_len = data_args.passage_max_len
 
-    for file in data_files:
-        logger.info("Loading dataset %s", file)
-        tmp_ds = datasets.load_dataset('json', data_files=file, split='train')
-        tmp_ds_len = len(tmp_ds)
-        # For testing, can add an origin column:
-        # origin_col = [file] * len(tmp_ds)
-        # tmp_ds = tmp_ds.add_column("origin", origin_col)
-        if tmp_ds_len > data_args.max_example_num_per_dataset:
-            tmp_ds = tmp_ds.select(
-                random.sample(list(range(tmp_ds_len)), data_args.max_example_num_per_dataset)
-            )
-        # Check if has instructions separated such that they will be masked out later
-        # If so filter out samples where the instructions are too long else they will all be 0s
-        if training_args.mode in ["embedding", "unified"] and "query" in tmp_ds.features:
-            if isinstance(tmp_ds[0]['query'], (tuple, list)):
-                logger.info(f"Filtering out embedding samples with too long instructions for {file}")
-                tmp_ds = filter_too_long_instructions(
-                    tokenizer,
-                    tmp_ds,
-                    data_args.query_max_len,
-                    data_args.passage_max_len,
-                )
-                if num_samples:
-                    assert file.split("/")[-1] in num_samples, f'Missing num_samples for {file.split("/")[-1]}'
-                    tmp_ds_len = len(tmp_ds)
-                    samples = num_samples[file.split("/")[-1]]
-                    if tmp_ds_len > samples:                    
-                        tmp_ds = tmp_ds.select(random.sample(list(range(tmp_ds_len)), samples))
-            ds_name_to_samples[file.split("/")[-1]] = len(tmp_ds)
-            train_ds.append(tmp_ds)
-            continue
-        if training_args.mode in ["unified", "generative"] and "text" in tmp_ds.features:
-            if isinstance(tmp_ds[0]['text'], (tuple, list)):
-                logger.info(f"Filtering out generative samples with too long instructions for {file}")
-                # Use passage_max_len, as this is the seq len limit for the entire generative snippet
-                num_proc = max(multiprocessing.cpu_count()-2, 1) if tmp_ds_len > 5000 else 1
-                tmp_ds = tmp_ds.filter(
-                    lambda ex: len(tokenizer.tokenize(USER_BOS + ex["text"][0] + USER_EOS + ASSISTANT_BOS)) < data_args.generative_max_len,
-                    num_proc=num_proc,
-                    load_from_cache_file=True,
-                )
-            ds_name_to_samples[file.split("/")[-1]] = len(tmp_ds)
-            train_ds.append(tmp_ds)
-            continue
-        logger.info("Skipping dataset %s as its type could not be identified", file)
-    if training_args.mode == "embedding":
-        ds_embedding_lens = [len(t) for t in train_ds]
-        ds = datasets.concatenate_datasets(train_ds)
-        logger.info("Embedding mode: %d samples", len(ds))
-    elif training_args.mode == "generative":
-        ds = datasets.concatenate_datasets(train_ds)
-        logger.info("Generative mode: %d samples", len(ds))
-    elif training_args.mode == "unified":
-        ds_embedding = datasets.concatenate_datasets([
-            t for t in train_ds if "query" in t.features
-        ])
-        ds_generative = datasets.concatenate_datasets([
-            t for t in train_ds if "text" in t.features
-        ])
-        logger.info("Unified mode: %d embedding samples, %d generative samples",
-            len(ds_embedding), len(ds_generative)
-        )
-        for t in train_ds:
-            if "query" in t.features:
-                num_samples = len(t)
-                ds_embedding_lens.append(num_samples)
-        ds = [ds_embedding, ds_generative]
-    else:
-        raise NotImplementedError(training_args.mode)
+    ds, ds_name_to_samples = create_dataset(data_files, data_args, training_args, tokenizer, num_samples)
+    ds_eval, _ = create_dataset(eval_files, data_args, training_args, tokenizer, num_samples)
+
 
     os.makedirs(training_args.output_dir, exist_ok=True)
     with open(os.path.join(training_args.output_dir, "dataset_num_samples.json"), "w") as f:
@@ -298,6 +232,7 @@ def main():
         "model": model,
         "args": training_args,
         "train_dataset": train_dataset,
+        "eval_dataset": ds_eval,
         "data_collator": CustomCollator(
             tokenizer,
             query_max_len=data_args.query_max_len,
@@ -314,6 +249,9 @@ def main():
             prefixlm=data_args.prefixlm
         ),
         "tokenizer": tokenizer,
+        "evaluation_strategy": "steps",
+        "eval_steps": data_args.eval_steps,
+        "eval_strategy": data_args.eval_strategy
     }
 
     if gc_chunk_size is not None:
@@ -433,6 +371,84 @@ def main():
     if trainer.is_world_process_zero(): 
         tokenizer.save_pretrained(training_args.output_dir)
         config.to_json_file(training_args.output_dir + "/config.json")
+
+def create_dataset(data_files, data_args, training_args, tokenizer, num_samples):
+    train_ds, ds_embedding_lens = [], []
+    ds_name_to_samples = {}
+
+    for file in data_files:
+        logger.info("Loading dataset %s", file)
+        tmp_ds = datasets.load_dataset('json', data_files=file, split='train')
+        tmp_ds_len = len(tmp_ds)
+        # For testing, can add an origin column:
+        # origin_col = [file] * len(tmp_ds)
+        # tmp_ds = tmp_ds.add_column("origin", origin_col)
+        if tmp_ds_len > data_args.max_example_num_per_dataset:
+            tmp_ds = tmp_ds.select(
+                random.sample(list(range(tmp_ds_len)), data_args.max_example_num_per_dataset)
+            )
+        # Check if has instructions separated such that they will be masked out later
+        # If so filter out samples where the instructions are too long else they will all be 0s
+        if training_args.mode in ["embedding", "unified"] and "query" in tmp_ds.features:
+            if isinstance(tmp_ds[0]['query'], (tuple, list)):
+                logger.info(f"Filtering out embedding samples with too long instructions for {file}")
+                tmp_ds = filter_too_long_instructions(
+                    tokenizer,
+                    tmp_ds,
+                    data_args.query_max_len,
+                    data_args.passage_max_len,
+                )
+                if num_samples:
+                    assert file.split("/")[-1] in num_samples, f'Missing num_samples for {file.split("/")[-1]}'
+                    tmp_ds_len = len(tmp_ds)
+                    samples = num_samples[file.split("/")[-1]]
+                    if tmp_ds_len > samples:
+                        tmp_ds = tmp_ds.select(random.sample(list(range(tmp_ds_len)), samples))
+            ds_name_to_samples[file.split("/")[-1]] = len(tmp_ds)
+            train_ds.append(tmp_ds)
+            continue
+        if training_args.mode in ["unified", "generative"] and "text" in tmp_ds.features:
+            if isinstance(tmp_ds[0]['text'], (tuple, list)):
+                logger.info(f"Filtering out generative samples with too long instructions for {file}")
+                # Use passage_max_len, as this is the seq len limit for the entire generative snippet
+                num_proc = max(multiprocessing.cpu_count() - 2, 1) if tmp_ds_len > 5000 else 1
+                tmp_ds = tmp_ds.filter(
+                    lambda ex: len(tokenizer.tokenize(
+                        USER_BOS + ex["text"][0] + USER_EOS + ASSISTANT_BOS)) < data_args.generative_max_len,
+                    num_proc=num_proc,
+                    load_from_cache_file=True,
+                )
+            ds_name_to_samples[file.split("/")[-1]] = len(tmp_ds)
+            train_ds.append(tmp_ds)
+            continue
+        logger.info("Skipping dataset %s as its type could not be identified", file)
+    if training_args.mode == "embedding":
+        ds_embedding_lens = [len(t) for t in train_ds]
+        ds = datasets.concatenate_datasets(train_ds)
+        logger.info("Embedding mode: %d samples", len(ds))
+    elif training_args.mode == "generative":
+        ds = datasets.concatenate_datasets(train_ds)
+        logger.info("Generative mode: %d samples", len(ds))
+    elif training_args.mode == "unified":
+        ds_embedding = datasets.concatenate_datasets([
+            t for t in train_ds if "query" in t.features
+        ])
+        ds_generative = datasets.concatenate_datasets([
+            t for t in train_ds if "text" in t.features
+        ])
+        logger.info("Unified mode: %d embedding samples, %d generative samples",
+                    len(ds_embedding), len(ds_generative)
+                    )
+        for t in train_ds:
+            if "query" in t.features:
+                num_samples = len(t)
+                ds_embedding_lens.append(num_samples)
+        ds = [ds_embedding, ds_generative]
+    else:
+        raise NotImplementedError(training_args.mode)
+
+    return ds, ds_name_to_samples
+
 
 if __name__ == "__main__":
     main()
