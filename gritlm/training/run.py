@@ -228,11 +228,21 @@ def main():
         max_seq_len=max(data_args.query_max_len, data_args.passage_max_len, data_args.generative_max_len),
     )
 
+    val_dataset = CustomDataset(
+        ds_eval,
+        args=data_args,
+        tokenizer=tokenizer,
+        mode=training_args.mode,
+        full_bs=training_args.per_device_train_batch_size,
+        generative_bs=training_args.per_device_generative_bs,
+        max_seq_len=max(data_args.query_max_len, data_args.passage_max_len, data_args.generative_max_len),
+    )
+
     trainer_kwargs = {
         "model": model,
         "args": training_args,
         "train_dataset": train_dataset,
-        "eval_dataset": ds_eval,
+        "eval_dataset": val_dataset,
         "data_collator": CustomCollator(
             tokenizer,
             query_max_len=data_args.query_max_len,
