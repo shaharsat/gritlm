@@ -134,8 +134,8 @@ def main():
     if data_args.generative_max_len is None:
         data_args.generative_max_len = data_args.passage_max_len
 
-    ds, ds_name_to_samples = create_dataset(data_files, data_args, training_args, tokenizer, num_samples)
-    ds_eval, _ = create_dataset(eval_files, data_args, training_args, tokenizer, num_samples)
+    ds, ds_name_to_samples, ds_embedding_lens = create_dataset(data_files, data_args, training_args, tokenizer, num_samples)
+    ds_eval, _, _ = create_dataset(eval_files, data_args, training_args, tokenizer, num_samples)
 
 
     os.makedirs(training_args.output_dir, exist_ok=True)
@@ -444,7 +444,7 @@ def create_dataset(data_files, data_args, training_args, tokenizer, num_samples)
     else:
         raise NotImplementedError(training_args.mode)
 
-    return ds, ds_name_to_samples
+    return ds, ds_name_to_samples, ds_embedding_lens
 
 
 if __name__ == "__main__":
