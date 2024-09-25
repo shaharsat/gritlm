@@ -2,6 +2,10 @@ import sys
 sys.path.append('/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/gritlm/training/GradCache/src/grad_cache')
 sys.path.append('/a/home/cc/students/cs/ohadr/netapp/shahar_s/gritlm/gritlm/training/')
 
+sys.path.append('/Users/shahar.satamkar/Desktop/research/gritlm/gritlm/training/GradCache/src/grad_cache')
+sys.path.append('/Users/shahar.satamkar/Desktop/research/gritlm/gritlm/training/')
+
+
 import math
 import os
 import time
