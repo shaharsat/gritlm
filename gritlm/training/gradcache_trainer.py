@@ -9,7 +9,7 @@ sys.path.append('/Users/shahar.satamkar/Desktop/research/gritlm/gritlm/training/
 import math
 import os
 import time
-from typing import Optional
+from typing import Optional, Union, Dict, List
 
 import numpy as np
 from packaging import version
@@ -22,7 +22,8 @@ from transformers.integrations.deepspeed import deepspeed_init, deepspeed_load_c
 from transformers.utils import logging, is_accelerate_available, is_sagemaker_mp_enabled, is_torch_tpu_available, is_datasets_available
 from transformers.trainer_callback import TrainerState
 from transformers.trainer_pt_utils import get_model_param_count
-from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR, TrainOutput, has_length, speed_metrics, seed_worker
+from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR, TrainOutput, has_length, speed_metrics, seed_worker, \
+    EvalLoopOutput
 
 from grad_cache import GradCache
 
