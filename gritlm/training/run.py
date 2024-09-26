@@ -261,11 +261,6 @@ def main():
         "tokenizer": tokenizer,
     }
 
-    def eval_metric(eval_predict):
-        print('#####')
-        print(eval_predict)
-        return {}
-
     if gc_chunk_size is not None:
         from .gradcache_trainer import GradCacheTrainer
         trainer = GradCacheTrainer(**trainer_kwargs)
@@ -278,7 +273,6 @@ def main():
         trainer.split_emb_full = training_args.split_emb_full
         trainer.emb_p_only = training_args.emb_p_only
         trainer.emb_q_only = training_args.emb_q_only
-        trainer.compute_metrics = eval_metric
     else:
         trainer = Trainer(**trainer_kwargs)
 
