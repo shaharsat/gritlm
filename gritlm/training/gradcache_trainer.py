@@ -874,6 +874,14 @@ class GradCacheTrainer(Trainer):
 
         return TrainOutput(self.state.global_step, train_loss, metrics)
 
+    """
+    class EvalLoopOutput(NamedTuple):
+    predictions: Union[np.ndarray, Tuple[np.ndarray]]
+    label_ids: Optional[Union[np.ndarray, Tuple[np.ndarray]]]
+    metrics: Optional[Dict[str, float]]
+    num_samples: Optional[int]
+    
+
     def evaluation_loop(
         self,
         dataloader: DataLoader,
@@ -884,3 +892,6 @@ class GradCacheTrainer(Trainer):
     ) -> EvalLoopOutput:
         print('###########')
         return {}
+        
+    """
+
