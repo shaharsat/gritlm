@@ -273,6 +273,9 @@ def main():
         trainer.split_emb_full = training_args.split_emb_full
         trainer.emb_p_only = training_args.emb_p_only
         trainer.emb_q_only = training_args.emb_q_only
+
+        print('#########')
+        print(trainer.compute_metrics)
     else:
         trainer = Trainer(**trainer_kwargs)
 
